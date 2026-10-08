@@ -105,6 +105,12 @@ export interface ApiContract {  ping: () => Promise<string>
 
   onNotify: (cb: (p: NotifyPayload) => void) => () => void
 
+  windowMinimize: () => void
+  windowToggleMaximize: () => void
+  windowClose: () => void
+  windowIsMaximized: () => Promise<boolean>
+  onWindowMaximized: (cb: (maximized: boolean) => void) => () => void
+
   regionSelect: (rect: RegionRect) => void
   regionCancel: () => void
   regionReady: () => void

@@ -45,6 +45,16 @@ export function registerIpc(
     e.returnValue = eq ? eq.split('=').slice(1).join('=') : ''
   })
 
+  // 自绘标题栏的窗口控制（frame:false 后系统不再提供按钮）
+  handle.on('window:minimize', () => win.minimize())
+  handle.on('window:toggleMaximize', () => {
+    if (win.isMaximized()) win.unmaximize()
+    else win.maximize()
+  })
+  // 走 close() 而非 destroy()，保留“最小化到托盘”的设置行为
+  handle.on('window:close', () => win.close())
+  handle.handle('window:isMaximized', () => win.isMaximized())
+
   // 设置
   handle.handle('settings:getAll', () => settings.getAll())
   handle.handle('settings:set', (_e, key: string, value: unknown) => {

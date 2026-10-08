@@ -58,6 +58,16 @@ const api: ApiContract = {
     return () => ipcRenderer.removeListener('app:notify', listener)
   },
 
+  windowMinimize: () => ipcRenderer.send('window:minimize'),
+  windowToggleMaximize: () => ipcRenderer.send('window:toggleMaximize'),
+  windowClose: () => ipcRenderer.send('window:close'),
+  windowIsMaximized: () => ipcRenderer.invoke('window:isMaximized'),
+  onWindowMaximized: (cb) => {
+    const listener = (_e: unknown, maximized: boolean): void => cb(maximized)
+    ipcRenderer.on('window:maximized', listener)
+    return () => ipcRenderer.removeListener('window:maximized', listener)
+  },
+
   regionSelect: (rect) => ipcRenderer.send('region:select', rect),
   regionCancel: () => ipcRenderer.send('region:cancel'),
   regionReady: () => ipcRenderer.send('region:ready'),

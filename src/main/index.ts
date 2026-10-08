@@ -1,7 +1,9 @@
-import { app, BrowserWindow, shell, Tray, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, shell, Tray, ipcMain, dialog, nativeTheme } from 'electron'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { join } from 'path'
 import { setupDataDir, dataDirRoot } from './paths'
+import { mainWindowOptions } from './window-options'
+import { resolveWindowBackground } from '../shared/theme'
 import { openDb, safeOpenDb, closeDb, getDb } from './services/db'
 import { registerIpc } from './ipc'
 import { createTray } from './tray'
@@ -48,24 +50,30 @@ let isQuitting = false
 let hotkeyManager: HotkeyManager | null = null
 
 function createWindow(): BrowserWindow {
-  const win = new BrowserWindow({
-    width: 1100,
-    height: 720,
-    minWidth: 960,
-    minHeight: 640,
-    show: false,
-    autoHideMenuBar: true,
-    title: '游戏翻译助手',
-    backgroundColor: '#161a21',
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
-      contextIsolation: true,
-      nodeIntegration: false
-    }
-  })
+  // 首帧底色跟随已保存的主题，避免启动时闪一下相反的颜色
+  let background = resolveWindowBackground('dark', nativeTheme.shouldUseDarkColors)
+  try {
+    const mode = new SettingsService(getDb()).get('themeMode')
+    background = resolveWindowBackground(mode, nativeTheme.shouldUseDarkColors)
+  } catch {
+    // 数据不可用时用深色默认值
+  }
+
+  const win = new BrowserWindow(
+    mainWindowOptions({
+      preloadPath: join(__dirname, '../preload/index.js'),
+      background
+    })
+  )
 
   win.on('ready-to-show', () => win.show())
+
+  // 自绘标题栏需要知道最大化状态（按钮图标与窗口行为同步）
+  const pushMaximized = (): void => {
+    if (!win.isDestroyed()) win.webContents.send('window:maximized', win.isMaximized())
+  }
+  win.on('maximize', pushMaximized)
+  win.on('unmaximize', pushMaximized)
 
   win.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)

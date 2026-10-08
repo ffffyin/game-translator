@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import TitleBar from './components/TitleBar.vue'
 import SideNav from './components/SideNav.vue'
 import ToastHost from './components/ToastHost.vue'
 import { useSettingsStore } from './stores/settings'
@@ -15,21 +16,30 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="app-shell">
-    <SideNav />
-    <main class="content">
-      <router-view v-slot="{ Component }">
-        <component :is="Component" />
-      </router-view>
-    </main>
+  <div class="app-root">
+    <TitleBar />
+    <div class="app-shell">
+      <SideNav />
+      <main class="content">
+        <router-view v-slot="{ Component }">
+          <component :is="Component" />
+        </router-view>
+      </main>
+    </div>
     <ToastHost />
   </div>
 </template>
 
 <style scoped>
-.app-shell {
-  display: flex;
+.app-root {
   height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.app-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
 }
 .content {
   flex: 1;
