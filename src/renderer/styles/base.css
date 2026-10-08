@@ -1,0 +1,90 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  font-family: 'Noto Sans SC', -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--txt);
+  font-size: 14px;
+  line-height: 1.7;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* 通用组件类（跨页面复用） */
+.m-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 17px 18px;
+}
+.m-card .lab {
+  font-size: 12px;
+  color: var(--txt2);
+  margin-bottom: 12px;
+}
+.m-btn {
+  border: 1px solid var(--line);
+  background: var(--card2);
+  color: var(--txt);
+  border-radius: 8px;
+  padding: 8px 15px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.m-btn:hover {
+  border-color: var(--accent-line);
+}
+.m-btn.accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a1408;
+  font-weight: 600;
+}
+.m-btn.teal {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #10201c;
+  font-weight: 600;
+}
+.m-input {
+  width: 100%;
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  color: var(--txt);
+  font-family: inherit;
+}
+.m-input::placeholder {
+  color: var(--txt3);
+}
+.m-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}

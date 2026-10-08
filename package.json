@@ -1,0 +1,41 @@
+{
+  "name": "game-translator",
+  "version": "1.0.0",
+  "description": "游戏翻译助手 Game Translator",
+  "main": "./out/main/index.js",
+  "author": "fygod",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "build:win": "electron-vite build && electron-builder --win",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json"
+  },
+  "dependencies": {
+    "@electron-toolkit/preload": "^3.0.1",
+    "@electron-toolkit/utils": "^3.0.0",
+    "openai": "^4.86.0",
+    "pinia": "^2.3.0",
+    "tesseract.js": "^5.1.1",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vitest/coverage-v8": "^2.1.8",
+    "@vue/test-utils": "^2.5.1",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.0.12",
+    "electron-vite": "^2.3.0",
+    "happy-dom": "^20.14.5",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8",
+    "vue-tsc": "^2.2.0"
+  }
+}

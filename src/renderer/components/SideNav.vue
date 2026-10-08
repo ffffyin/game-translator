@@ -1,0 +1,133 @@
+<script setup lang="ts">
+import { useModelsStore } from '../stores/models'
+const models = useModelsStore()
+
+const nav = [
+  {
+    to: '/home',
+    label: '主页',
+    icon: 'M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10'
+  },
+  {
+    to: '/mode',
+    label: '模式',
+    icon: 'M4 6h16M4 12h16M4 18h16'
+  },
+  {
+    to: '/quota',
+    label: 'AI 额度',
+    icon: 'M3 7h18v12H3zM3 11h18'
+  },
+  {
+    to: '/config',
+    label: '模型配置',
+    icon: 'M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1'
+  },
+  {
+    to: '/about',
+    label: '关于软件',
+    icon: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 7.5h.01'
+  }
+]
+</script>
+
+<template>
+  <aside class="side">
+    <div class="logo">
+      <span class="lg">译</span>
+      <b>游戏翻译助手</b>
+    </div>
+
+    <nav class="nav">
+      <router-link v-for="n in nav" :key="n.to" :to="n.to" class="nav-item" active-class="on">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path :d="n.icon" />
+        </svg>
+        {{ n.label }}
+      </router-link>
+    </nav>
+
+    <div class="foot">
+      <span class="dot" :class="{ ok: models.defaultModel }"></span>
+      {{ models.defaultModel ? models.defaultModel.name : '等待配置模型' }}
+    </div>
+  </aside>
+</template>
+
+<style scoped>
+.side {
+  width: 172px;
+  flex-shrink: 0;
+  background: var(--side);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  padding: 18px 13px;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 8px 18px;
+}
+.lg {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #161a21;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+.logo b {
+  font-size: 13.5px;
+}
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--txt2);
+}
+.nav-item svg {
+  width: 17px;
+  height: 17px;
+}
+.nav-item:hover {
+  color: var(--txt);
+}
+.nav-item.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+}
+.foot {
+  margin-top: auto;
+  font-size: 11px;
+  color: var(--txt3);
+  padding: 10px 8px 0;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--txt3);
+}
+.dot.ok {
+  background: var(--teal);
+}
+</style>

@@ -1,0 +1,44 @@
+{
+  "phrases": [
+    {
+      "slot": 1,
+      "content": "已使自身本场比赛的积分得失加倍！",
+      "accelerator": "Alt+1"
+    },
+    {
+      "slot": 2,
+      "content": "由于挂机行为已经被系统从游戏中踢出...",
+      "accelerator": "Alt+2"
+    },
+    {
+      "slot": 3,
+      "content": "已经放弃了游戏，这场比赛不计入天梯积分，剩余玩家可以自由退出。",
+      "accelerator": "Alt+3"
+    },
+    {
+      "slot": 4,
+      "content": "由于长时间没有重连至游戏，系统判定他为逃跑。玩家现在离开该场比赛将不会被判定为放弃！",
+      "accelerator": "Alt+4"
+    },
+    {
+      "slot": 5,
+      "content": "已经放弃了游戏，系统判定他为逃跑。玩家现在离开该场比赛将不会被判定为放弃。",
+      "accelerator": "Alt+5"
+    },
+    {
+      "slot": 6,
+      "content": "检测到网络的连接情况非常糟糕，本场比赛将不会计入数据。现在可以安全离开比赛。",
+      "accelerator": "Alt+6"
+    },
+    {
+      "slot": 7,
+      "content": "已经连续258次预测他们队伍将取得胜利！",
+      "accelerator": "Alt+7"
+    },
+    {
+      "slot": 8,
+      "content": "经系统检测：玩家XXXXXX存在代练或共享账号嫌疑，遵守社区游戏规范，再次违反将进行封禁处理。",
+      "accelerator": "Alt+8"
+    }
+  ]
+}

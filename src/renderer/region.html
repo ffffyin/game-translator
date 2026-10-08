@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>区域选择</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        user-select: none;
+        cursor: crosshair;
+        background: rgba(10, 13, 18, 0.35);
+      }
+      #sel {
+        position: fixed;
+        border: 1.5px solid #3cc7ab;
+        box-shadow: 0 0 0 9999px rgba(8, 10, 14, 0.45);
+        box-sizing: border-box;
+      }
+      #size {
+        position: absolute;
+        left: 0;
+        top: -22px;
+        font: 12px/1.4 "Segoe UI", sans-serif;
+        color: #e7eaf0;
+        background: #3cc7ab;
+        padding: 0 7px;
+        border-radius: 4px;
+        white-space: nowrap;
+      }
+      #tip {
+        position: fixed;
+        left: 50%;
+        top: 26px;
+        transform: translateX(-50%);
+        font: 13px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif;
+        color: #e7eaf0;
+        background: rgba(29, 35, 45, 0.92);
+        border: 1px solid #2d3543;
+        border-radius: 8px;
+        padding: 7px 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="mask"></div>
+    <div id="sel" hidden>
+      <span id="size"></span>
+    </div>
+    <div id="tip">按住鼠标左键拖出翻译区域，ESC 取消</div>
+    <script type="module" src="./region/main.ts"></script>
+  </body>
+</html>

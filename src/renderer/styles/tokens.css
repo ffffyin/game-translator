@@ -1,0 +1,31 @@
+/* 深色（默认） */
+:root {
+  --bg: #161a21;
+  --side: #101319;
+  --card: #1d232d;
+  --card2: #232b38;
+  --line: #2d3543;
+  --txt: #e7eaf0;
+  --txt2: #9aa4b4;
+  --txt3: #6c7585;
+  --accent: #f2b24c;
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 55%, transparent);
+  --danger: #e2685e;
+  --danger-soft: color-mix(in srgb, var(--danger) 12%, transparent);
+  --teal: #3cc7ab;
+  --teal-soft: color-mix(in srgb, var(--teal) 12%, transparent);
+  --radius: 12px;
+}
+
+/* 浅色 */
+:root[data-theme='light'] {
+  --bg: #eef0f3;
+  --side: #ffffff;
+  --card: #ffffff;
+  --card2: #f3f5f8;
+  --line: #dde1e8;
+  --txt: #1b2027;
+  --txt2: #596172;
+  --txt3: #98a0ae;
+}

@@ -1,0 +1,32 @@
+appId: com.fygod.gametranslator
+productName: GameTranslator
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!tests/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+asarUnpack:
+  - resources/**
+win:
+  executableName: game-translator
+  target: nsis
+nsis:
+  oneClick: false
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+  allowToChangeInstallationDirectory: true
+extraResources:
+  - from: resources/tessdata
+    to: tessdata
+  - from: resources/ocr
+    to: ocr
+  - from: resources/terms
+    to: terms
+  - from: resources/phrases
+    to: phrases

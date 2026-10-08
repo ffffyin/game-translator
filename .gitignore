@@ -1,0 +1,22 @@
+# 依赖
+node_modules/
+
+# 构建产物
+out/
+dist/
+coverage/
+
+# 日志与临时文件
+*.log
+*.tmp
+
+# TypeScript 增量构建信息
+*.tsbuildinfo
+
+# 系统文件
+Thumbs.db
+.DS_Store
+
+# 编辑器
+.idea/
+.vscode/
