@@ -103,3 +103,44 @@ describe('用量日志归档', () => {
     expect(idx.map((i) => i.name)).toContain('idx_terms_lib')
   })
 })
+
+describe('用量日志日期口径（ts 存 UTC，按本地日期统计）', () => {
+  function freshDb(): Db {
+    const p = join(
+      tmpdir(),
+      `gt-usage-tz-${Date.now()}-${Math.random().toString(36).slice(2)}.db`
+    )
+    const db = new Db(p)
+    applyMigrations(db)
+    return db
+  }
+
+  it('本地今天凌晨的记录必须计入今日合计，昨天的不能混入', () => {
+    const db = freshDb()
+    const svc = new UsageService(db)
+    const todayEarly = new Date()
+    todayEarly.setHours(0, 5, 0, 0)
+    const yesterdayLate = new Date(todayEarly.getTime() - 10 * 60 * 1000) // 昨天 23:55
+
+    svc.log({ ts: todayEarly.toISOString(), kind: 'text', chars: 7 })
+    svc.log({ ts: yesterdayLate.toISOString(), kind: 'text', chars: 100 })
+
+    const t = svc.totalsToday()
+    expect(t.count).toBe(1)
+    expect(t.chars).toBe(7)
+    // 必须与近 7 天按本地日期分组的统计口径一致
+    expect(svc.aggregateDays(1).at(-1)!.count).toBe(1)
+    db.close()
+  })
+
+  it('prune 按 UTC 归一化比较时间戳', () => {
+    const db = freshDb()
+    const svc = new UsageService(db)
+    const day = 24 * 60 * 60 * 1000
+    svc.log({ ts: new Date(Date.now() - 91 * day).toISOString(), kind: 'text', chars: 1 })
+    svc.log({ ts: new Date(Date.now() - 89 * day).toISOString(), kind: 'text', chars: 2 })
+    expect(svc.prune(90)).toBe(1)
+    expect(svc.totals().count).toBe(1)
+    db.close()
+  })
+})

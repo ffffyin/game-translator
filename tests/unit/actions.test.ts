@@ -34,9 +34,12 @@ import {
 import type { ModelConfigInput } from '../../src/shared/model'
 import { Db } from '../../src/main/services/db-wrapper'
 
-function fakeWin() {
+function fakeWin(opts: { focused?: boolean } = {}) {
   const send = vi.fn()
-  const win = { webContents: { send } } as unknown as BrowserWindow
+  const win = {
+    webContents: { send },
+    isFocused: () => opts.focused === true
+  } as unknown as BrowserWindow
   return { win, send }
 }
 
@@ -173,5 +176,44 @@ describe('翻译动作（快捷键 1/2）', () => {
     const notes = payloads(send)
     expect(notes.some((n) => n.type === 'error' && n.message.includes('401'))).toBe(true)
     expect(usageRows(50).length).toBe(before)
+  })
+
+  it('主窗口处于前台：提示切回游戏窗口，不读取不粘贴', async () => {
+    hoisted.readSelectedText.mockResolvedValue('gg')
+    const { win, send } = fakeWin({ focused: true })
+    await actionTranslateReplace({ win, db })
+
+    expect(hoisted.readSelectedText).not.toHaveBeenCalled()
+    expect(hoisted.pasteText).not.toHaveBeenCalled()
+    const notes = payloads(send)
+    expect(notes.some((n) => n.type === 'info' && n.message.includes('切到游戏内聊天框'))).toBe(true)
+    // 不能留下任何进行中的提示
+    expect(notes.some((n) => n.type === 'loading')).toBe(false)
+  })
+
+  it('连按快捷键：第二次被防重入拦掉，不叠加按键模拟', async () => {
+    let release: (v: string) => void = () => undefined
+    hoisted.readSelectedText.mockImplementation(
+      () => new Promise<string>((r) => (release = r))
+    )
+    const { win, send } = fakeWin()
+    const first = actionTranslateReplace({ win, db })
+    await actionTranslateClipboard({ win, db }) // 第一次仍在进行中
+    expect(hoisted.readSelectedText).toHaveBeenCalledTimes(1)
+
+    release('')
+    await first
+    const notes = payloads(send)
+    expect(notes.filter((n) => n.type === 'loading')).toHaveLength(1)
+  })
+
+  it('每次动作都有终态通知：成功或失败都不会只剩 loading', async () => {
+    hoisted.readSelectedText.mockResolvedValue('gg')
+    hoisted.create.mockRejectedValue(new Error('boom'))
+    const { win, send } = fakeWin()
+    await actionTranslateClipboard({ win, db })
+    const notes = payloads(send)
+    expect(notes.some((n) => n.type === 'loading')).toBe(true)
+    expect(notes.some((n) => n.type === 'ok' || n.type === 'error')).toBe(true)
   })
 })

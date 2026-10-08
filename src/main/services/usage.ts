@@ -39,11 +39,13 @@ export class UsageService {
   }
 
   // 归档：只保留最近 days 天的明细，避免 totals()/byConfig() 长期全表扫描
+  // ts 与 datetime('now') 都是 UTC，用 datetime(ts) 归一化后再比较（原始字符串带 T/Z，
+  // 直接和 'YYYY-MM-DD HH:MM:SS' 比会因格式不同而得出错误结果）
   prune(days = 90): number {
     const r = this.db
       .prepare(
         `DELETE FROM usage_logs
-         WHERE ts < datetime('now', 'localtime', ?)`
+         WHERE datetime(ts) < datetime('now', ?)`
       )
       .run(`-${days} days`)
     return Number(r.changes)
@@ -83,7 +85,9 @@ export class UsageService {
     return row
   }
 
-  // 今日（本地日期）合计
+  // 今日（本地日期）合计。
+  // ts 存的是 UTC ISO，必须先换算成本地日期再比较：直接取 substr(ts,1,10) 是 UTC 日期，
+  // 在北京时间 00:00-08:00 之间会把"今天凌晨"的记录算成昨天（今日合计显示 0）
   totalsToday(): { count: number; chars: number; tokens_in: number; tokens_out: number } {
     return this.db
       .prepare(
@@ -91,7 +95,7 @@ export class UsageService {
                 COALESCE(SUM(tokens_in),0) AS tokens_in,
                 COALESCE(SUM(tokens_out),0) AS tokens_out
          FROM usage_logs
-         WHERE substr(ts, 1, 10) = date('now', 'localtime')`
+         WHERE date(ts, 'localtime') = date('now', 'localtime')`
       )
       .get() as { count: number; chars: number; tokens_in: number; tokens_out: number }
   }
