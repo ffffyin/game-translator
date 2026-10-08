@@ -1,6 +1,9 @@
+import { readdirSync, readFileSync } from 'fs'
+import { join } from 'path'
 import type { Db } from './db-wrapper'
 import { TermLibraryService, type BuiltinTermFile } from './term-library'
 import { validateTermFile } from './term-io'
+import { invalidateTermCache } from './term-cache'
 
 export interface ManifestEntry {
   game: string
@@ -99,6 +102,7 @@ export function mergeLibraryData(db: Db, libId: number, data: BuiltinTermFile): 
     )
   })
   tx()
+  invalidateTermCache(libId)
   return { replaced: newBuiltin.length, keptCustom: customTerms.length }
 }
 
@@ -119,4 +123,51 @@ export async function applyUpdates(
     results.push({ game: info.game, newVersion: info.newVersion, ...r })
   }
   return results
+}
+
+// 启动时把随安装包带来的内置词库与数据库对齐：
+// 版本不同就替换内置词条（自定义词条保留）——否则老用户升级后看不到新增术语
+export function syncBuiltinTerms(
+  db: Db,
+  resourcesRoot: string
+): { updated: string[]; added: string[] } {
+  const svc = new TermLibraryService(db)
+  const dir = join(resourcesRoot, 'terms')
+  let files: string[] = []
+  try {
+    files = readdirSync(dir).filter((f) => f.endsWith('.json'))
+  } catch {
+    return { updated: [], added: [] }
+  }
+  const updated: string[] = []
+  const added: string[] = []
+  for (const file of files) {
+    let data: BuiltinTermFile
+    try {
+      data = JSON.parse(readFileSync(join(dir, file), 'utf8')) as BuiltinTermFile
+    } catch {
+      continue
+    }
+    if (!data?.game || !Array.isArray(data.terms)) continue
+
+    const lib = svc.getLibByGame(data.game)
+    if (!lib) {
+      const r = db
+        .prepare(
+          'INSERT INTO term_libraries (game, name, version, source_url, is_builtin, updated_at) VALUES (?,?,?,?,1,?)'
+        )
+        .run(data.game, data.name, data.version ?? '0', null, new Date().toISOString())
+      const libId = Number(r.lastInsertRowid)
+      svc.bulkInsertTerms(libId, data.terms, false)
+      added.push(data.game)
+      continue
+    }
+    if (lib.is_builtin !== 1) continue
+    if ((lib.version ?? '0') !== (data.version ?? '0')) {
+      mergeLibraryData(db, lib.id, data)
+      updated.push(data.game)
+    }
+  }
+  if (updated.length || added.length) invalidateTermCache()
+  return { updated, added }
 }

@@ -2,6 +2,7 @@ import type { Db } from './db-wrapper'
 import type { AppSettings } from '../../shared/defaults'
 import type { GlossaryTerm } from './translate-prompt'
 import { TermLibraryService } from './term-library'
+import { getCachedTerms } from './term-cache'
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -45,5 +46,5 @@ export function resolveGlossary(db: Db, settings: AppSettings, text: string): Gl
   const svc = new TermLibraryService(db)
   const lib = svc.getLibByGame(game)
   if (!lib) return []
-  return matchTerms(text, svc.listTerms(lib.id))
+  return matchTerms(text, getCachedTerms(lib.id, () => svc.listTerms(lib.id)))
 }

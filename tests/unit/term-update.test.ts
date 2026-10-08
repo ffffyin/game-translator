@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { join } from 'path'
 import { tmpdir } from 'os'
+import { mkdtempSync, mkdirSync, writeFileSync } from 'fs'
 import { Db } from '../../src/main/services/db-wrapper'
 import { applyMigrations } from '../../src/main/db/schema'
 import { seedBuiltinTerms, TermLibraryService } from '../../src/main/services/term-library'
@@ -8,7 +9,8 @@ import {
   isValidHttpUrl,
   checkForUpdates,
   applyUpdates,
-  mergeLibraryData
+  mergeLibraryData,
+  syncBuiltinTerms
 } from '../../src/main/services/term-update'
 import type { BuiltinTermFile } from '../../src/main/services/term-library'
 
@@ -146,5 +148,83 @@ describe('applyUpdates 端到端', () => {
     await expect(applyUpdates(db, MANIFEST_URL)).rejects.toThrow(/network down/)
     const dota = svc.getLibByGame('dota2')!
     expect(dota.version).toBe('2026.10.08')
+  })
+})
+
+describe('syncBuiltinTerms 启动对齐', () => {
+  function tmpResources(files: Record<string, unknown>): string {
+    const dir = mkdtempSync(join(tmpdir(), 'gt-res-'))
+    const tdir = join(dir, 'terms')
+    mkdirSync(tdir, { recursive: true })
+    for (const [name, data] of Object.entries(files)) {
+      writeFileSync(join(tdir, name), JSON.stringify(data), 'utf8')
+    }
+    return dir
+  }
+
+  it('内置库版本落后时替换内置词条，自定义词条保留', () => {
+    const db = dbWithSeeds()
+    const svc = new TermLibraryService(db)
+    const dota = svc.getLibByGame('dota2')!
+    svc.createTerm(dota.id, { source_text: 'myword', target_text: '我的词' })
+
+    const root = tmpResources({
+      'dota2.json': {
+        game: 'dota2',
+        name: 'Dota 2',
+        version: '2030.01.01',
+        terms: [
+          { source: 'brandnew', target: '全新词条', tag: '装备' },
+          { source: 'myword', target: '内置的同名词', tag: '装备' }
+        ]
+      }
+    })
+    const r = syncBuiltinTerms(db, root)
+    expect(r.updated).toEqual(['dota2'])
+    const after = svc.getLibByGame('dota2')!
+    expect(after.version).toBe('2030.01.01')
+    const sources = svc.listTerms(after.id).map((t) => t.source_text)
+    expect(sources).toContain('brandnew')
+    // 同名时自定义优先，不被内置覆盖
+    const mine = svc.listTerms(after.id).find((t) => t.source_text === 'myword')!
+    expect(mine.target_text).toBe('我的词')
+    expect(mine.is_custom).toBe(1)
+  })
+
+  it('版本一致时不做任何改动', () => {
+    const db = dbWithSeeds()
+    const svc = new TermLibraryService(db)
+    const before = svc.listTerms(svc.getLibByGame('dota2')!.id).length
+    const root = tmpResources({
+      'dota2.json': {
+        game: 'dota2',
+        name: 'Dota 2',
+        version: svc.getLibByGame('dota2')!.version,
+        terms: [{ source: 'x', target: 'y' }]
+      }
+    })
+    expect(syncBuiltinTerms(db, root).updated).toEqual([])
+    expect(svc.listTerms(svc.getLibByGame('dota2')!.id).length).toBe(before)
+  })
+
+  it('缺库时新增，资源目录不存在时不抛错', () => {
+    const p = join(tmpdir(), `gt-sync-${Date.now()}-${Math.random().toString(36).slice(2)}.db`)
+    const db = new Db(p)
+    applyMigrations(db)
+    const svc = new TermLibraryService(db)
+    const root = tmpResources({
+      'newgame.json': {
+        game: 'newgame',
+        name: '新游戏',
+        version: '1.0.0',
+        terms: [{ source: 'aaa', target: '啊啊' }]
+      }
+    })
+    expect(syncBuiltinTerms(db, root).added).toEqual(['newgame'])
+    expect(svc.getLibByGame('newgame')).toBeTruthy()
+    expect(syncBuiltinTerms(db, join(tmpdir(), 'gt-not-exist-xxx'))).toEqual({
+      updated: [],
+      added: []
+    })
   })
 })

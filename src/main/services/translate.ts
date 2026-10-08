@@ -74,14 +74,17 @@ export async function translateOcrLines(opts: {
     { role: 'system' as const, content: system },
     { role: 'user' as const, content: lines.map((l, i) => `${i + 1}. ${l}`).join('\n') }
   ]
-  try {
-    writeFileSync(
-      join(app.getPath('userData'), 'exports', 'last-ocr-request.json'),
-      JSON.stringify({ model: config.text_model, messages }, null, 2),
-      'utf8'
-    )
-  } catch {
-    // 诊断文件写入失败不影响主流程
+  // 诊断文件默认不写：会把聊天原文明文落盘。需要排查时设环境变量 GT_DEBUG_OCR=1
+  if (process.env['GT_DEBUG_OCR'] === '1') {
+    try {
+      writeFileSync(
+        join(app.getPath('userData'), 'exports', 'last-ocr-request.json'),
+        JSON.stringify({ model: config.text_model, messages }, null, 2),
+        'utf8'
+      )
+    } catch {
+      // 诊断文件写入失败不影响主流程
+    }
   }
   const waitLog = setInterval(() => {
     const sec = Math.round((Date.now() - t0) / 1000)

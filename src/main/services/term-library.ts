@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'fs'
 import { join } from 'path'
 import type { Db } from './db-wrapper'
+import { invalidateTermCache } from './term-cache'
 
 export interface LibRow {
   id: number
@@ -86,6 +87,7 @@ export class TermLibraryService {
       this.db.prepare('DELETE FROM term_libraries WHERE id = ?').run(id)
     })
     tx()
+    invalidateTermCache(id)
   }
 
   listTerms(libId: number, search?: string): TermRow[] {
@@ -116,19 +118,28 @@ export class TermLibraryService {
         'INSERT INTO terms (lib_id, source_text, target_text, tag, is_custom, updated_at) VALUES (?,?,?,?,1,?)'
       )
       .run(libId, input.source_text, input.target_text, input.tag ?? null, now)
+    invalidateTermCache(libId)
     return Number(r.lastInsertRowid)
   }
 
   updateTerm(id: number, input: TermInput): void {
+    const row = this.db.prepare('SELECT lib_id FROM terms WHERE id = ?').get(id) as
+      | { lib_id: number }
+      | undefined
     this.db
       .prepare(
         'UPDATE terms SET source_text = ?, target_text = ?, tag = ?, is_custom = 1, updated_at = ? WHERE id = ?'
       )
       .run(input.source_text, input.target_text, input.tag ?? null, new Date().toISOString(), id)
+    invalidateTermCache(row?.lib_id)
   }
 
   deleteTerm(id: number): void {
+    const row = this.db.prepare('SELECT lib_id FROM terms WHERE id = ?').get(id) as
+      | { lib_id: number }
+      | undefined
     this.db.prepare('DELETE FROM terms WHERE id = ?').run(id)
+    invalidateTermCache(row?.lib_id)
   }
 
   bulkInsertTerms(
@@ -152,6 +163,7 @@ export class TermLibraryService {
       'INSERT INTO terms (lib_id, source_text, target_text, tag, is_custom, updated_at) VALUES (?,?,?,?,?,?)'
     )
     for (const t of terms) stmt.run(libId, t.source, t.target, t.tag ?? null, isCustom ? 1 : 0, now)
+    invalidateTermCache(libId)
     return terms.length
   }
 }

@@ -15,6 +15,7 @@ import { actionRegionScreenshot, actionFullscreenScreenshot } from './services/s
 import { runCaptureSelfcheck, runOverlaySelfcheck, runRegionSelfcheck } from './services/selfcheck'
 import { registerOcrScheme, registerOcrProtocol } from './services/ocr-asset-protocol'
 import { seedBuiltinTerms } from './services/term-library'
+import { syncBuiltinTerms } from './services/term-update'
 import { seedDefaultPhrases, PhraseService } from './services/phrases'
 import { actionSendPhrase } from './services/phrase-actions'
 import {
@@ -186,8 +187,11 @@ app.whenReady().then(async () => {
     : join(app.getAppPath(), 'resources')
   registerOcrProtocol(resourcesRoot)
 
-  // 内置术语库种子（幂等）
+  // 内置术语库种子（幂等）→ 再按版本号对齐，保证升级后能拿到新增词条
   seedBuiltinTerms(db, resourcesRoot)
+  const termSync = syncBuiltinTerms(db, resourcesRoot)
+  if (termSync.updated.length) log('INFO', `内置术语库已更新：${termSync.updated.join(', ')}`)
+  if (termSync.added.length) log('INFO', `内置术语库已新增：${termSync.added.join(', ')}`)
   // 常用语种子（幂等）
   seedDefaultPhrases(db, resourcesRoot)
 
