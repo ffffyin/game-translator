@@ -2,7 +2,11 @@
 import { ref, onMounted, computed } from 'vue'
 import PageHeader from '../components/PageHeader.vue'
 import { useModelsStore } from '../stores/models'
-import { PROVIDER_TEMPLATES, type ProviderTemplate } from '../../shared/providers'
+import {
+  PROVIDER_TEMPLATES,
+  inferTemplateByHost,
+  type ProviderTemplate
+} from '../../shared/providers'
 import type { ModelConfigInput, ModelConfigView } from '../../shared/model'
 
 const models = useModelsStore()
@@ -43,6 +47,12 @@ const form = ref<FormState>(emptyForm())
 const currentTemplate = computed<ProviderTemplate | undefined>(() =>
   PROVIDER_TEMPLATES.find((p) => p.provider === form.value.provider)
 )
+
+// 选了「自定义」却填官方地址：提示改用对应厂商模板，余额查询更准确
+const providerHint = computed<ProviderTemplate | null>(() => {
+  if (form.value.provider !== 'custom') return null
+  return inferTemplateByHost(form.value.base_url) ?? null
+})
 
 function pickProvider(provider: string) {
   const t = PROVIDER_TEMPLATES.find((p) => p.provider === provider)
@@ -203,6 +213,11 @@ onMounted(async () => {
         <label>API 地址</label>
         <input v-model="form.base_url" class="m-input" placeholder="https://..." />
       </div>
+      <div v-if="providerHint" class="f-hint">
+        检测到这是「{{ providerHint.name }}」官方地址，建议把上方「厂商模板」直接改为「{{
+          providerHint.name
+        }}」，余额查询与模型名提示会更准确。
+      </div>
 
       <div class="f-row">
         <label>API Key</label>
@@ -314,6 +329,16 @@ onMounted(async () => {
   width: 16px;
   height: 16px;
   accent-color: var(--accent);
+}
+.f-hint {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--teal);
+  background: var(--teal-soft);
+  border: 1px solid var(--teal);
+  border-radius: 8px;
+  padding: 7px 11px;
+  margin: -6px 0 13px;
 }
 textarea {
   resize: vertical;

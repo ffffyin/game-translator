@@ -103,6 +103,22 @@ describe('ConfigPage 模型配置页', () => {
     await vi.waitFor(() => expect(api.modelsDelete).toHaveBeenCalled())
   })
 
+  it('自定义模板却填官方地址：给出改用厂商模板的提示', async () => {
+    store = [makeView(1, { provider: 'custom', base_url: 'https://api.deepseek.com/v1' })]
+    installApi()
+    const w = mountPage()
+    await vi.waitFor(() => expect(w.find('.f-hint').exists()).toBe(true))
+    expect(w.find('.f-hint').text()).toContain('DeepSeek')
+  })
+
+  it('自定义模板 + 中转站地址：不显示厂商提示', async () => {
+    store = [makeView(1, { provider: 'custom', base_url: 'https://relay.example.com/v1' })]
+    installApi()
+    const w = mountPage()
+    await vi.waitFor(() => expect(w.text()).toContain('模型1'))
+    expect(w.find('.f-hint').exists()).toBe(false)
+  })
+
   it('空数据时展示空态并自动打开新表单', async () => {
     store = []
     installApi()

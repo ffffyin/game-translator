@@ -77,3 +77,24 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
 export function findProvider(provider: string): ProviderTemplate | undefined {
   return PROVIDER_TEMPLATES.find((p) => p.provider === provider)
 }
+
+// 按 base_url 主机名反查内置厂商模板：
+// 用户常见误配是选了「自定义（OpenAI 兼容）」却填官方地址，
+// 需要按地址识别真实厂商，否则会拿中转站协议去查官方域名。
+export function inferTemplateByHost(baseUrl: string): ProviderTemplate | undefined {
+  let host = ''
+  try {
+    host = new URL(baseUrl.trim()).hostname.toLowerCase()
+  } catch {
+    return undefined
+  }
+  if (!host) return undefined
+  return PROVIDER_TEMPLATES.find((p) => {
+    if (!p.baseUrl) return false
+    try {
+      return new URL(p.baseUrl).hostname.toLowerCase() === host
+    } catch {
+      return false
+    }
+  })
+}

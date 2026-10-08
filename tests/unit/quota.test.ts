@@ -8,7 +8,7 @@ vi.mock('../../src/main/services/crypto', () => ({
 import { Db } from '../../src/main/services/db-wrapper'
 import { applyMigrations } from '../../src/main/db/schema'
 import { ModelConfigService } from '../../src/main/services/model-config'
-import { queryQuota } from '../../src/main/services/quota'
+import { queryQuota, inferTemplateByHost } from '../../src/main/services/quota'
 import type { ModelConfigInput } from '../../src/shared/model'
 
 async function makeModel(
@@ -123,5 +123,63 @@ describe('额度查询适配器', () => {
     fetchMock.mockRejectedValue(new Error('ENOTFOUND'))
     const r = await queryQuota(models, v)
     expect(r.error).toContain('ENOTFOUND')
+  })
+
+  // —— 回归：用户用「自定义」模板却填官方地址（曾导致 HTTP 404） ——
+  it('自定义模板 + DeepSeek 官方地址：按主机名纠偏，改走 /user/balance', async () => {
+    const v = await makeModel(models, 'custom', 'https://api.deepseek.com/v1')
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        is_available: true,
+        balance_infos: [{ currency: 'CNY', total_balance: '88.8' }]
+      })
+    })
+    const r = await queryQuota(models, v)
+    expect(r.balanceText).toBe('88.8 CNY')
+    expect(String(fetchMock.mock.calls[0][0])).toBe('https://api.deepseek.com/user/balance')
+  })
+
+  it('自定义模板 + OpenRouter 官方地址：按主机名纠偏，改走 /credits', async () => {
+    const v = await makeModel(models, 'custom', 'https://openrouter.ai/api/v1')
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: { total_credits: 10, total_usage: 2.5 } })
+    })
+    const r = await queryQuota(models, v)
+    expect(r.balanceText).toBe('$7.50')
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/credits')
+  })
+
+  it('自定义中转站返回 404：回退探测 DeepSeek 风格余额并成功', async () => {
+    const v = await makeModel(models, 'custom', 'https://relay.example.com/v1')
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({}) })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ balance_infos: [{ currency: 'CNY', total_balance: '3.5' }] })
+      })
+    const r = await queryQuota(models, v)
+    expect(r.balanceText).toBe('3.5 CNY')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(String(fetchMock.mock.calls[1][0])).toBe('https://relay.example.com/user/balance')
+  })
+
+  it('自定义中转站 404 且无可用余额接口：给出可操作提示', async () => {
+    const v = await makeModel(models, 'custom', 'https://relay.example.com/v1')
+    fetchMock.mockResolvedValue({ ok: false, status: 404, json: async () => ({}) })
+    const r = await queryQuota(models, v)
+    expect(r.error).toContain('404')
+    expect(r.error).toContain('厂商模板')
+  })
+
+  it('主机名识别：命中官方域名返回模板，未知域名返回 undefined', () => {
+    expect(inferTemplateByHost('https://api.deepseek.com/v1')?.provider).toBe('deepseek')
+    expect(inferTemplateByHost('https://openrouter.ai/api/v1')?.provider).toBe('openrouter')
+    expect(inferTemplateByHost('https://relay.example.com/v1')).toBeUndefined()
+    expect(inferTemplateByHost('not-a-url')).toBeUndefined()
   })
 })
