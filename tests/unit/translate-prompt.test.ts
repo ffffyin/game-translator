@@ -30,6 +30,40 @@ describe('buildSystemPrompt', () => {
     )
   })
 
+  it('嘴臭模式注入强攻击性规则与火力档位', () => {
+    const p = buildSystemPrompt({ ...DEFAULT_SETTINGS, translationStyle: 'toxic' })
+    expect(p).toContain('嘴臭模式')
+    expect(p).toContain('严禁礼貌化')
+    expect(p).toContain('放大')
+    expect(p).toContain('noob')
+    expect(p).toContain('火力档位【标准嘴臭】')
+  })
+
+  it('嘴臭三档各自生效，非法档位回落到标准嘴臭', () => {
+    expect(
+      buildSystemPrompt({ ...DEFAULT_SETTINGS, translationStyle: 'toxic', toxicLevel: 'mild' })
+    ).toContain('火力档位【阴阳怪气】')
+    expect(
+      buildSystemPrompt({ ...DEFAULT_SETTINGS, translationStyle: 'toxic', toxicLevel: 'nuclear' })
+    ).toContain('火力档位【火力全开】')
+    expect(
+      buildSystemPrompt({ ...DEFAULT_SETTINGS, translationStyle: 'toxic', toxicLevel: 'xxx' })
+    ).toContain('火力档位【标准嘴臭】')
+  })
+
+  it('嘴臭模式仍要求忠实原文，不得凭空编造指控', () => {
+    const p = buildSystemPrompt({ ...DEFAULT_SETTINGS, translationStyle: 'toxic' })
+    expect(p).toContain('禁止编造原文没有的具体事件')
+    expect(p).toContain('不得涉及种族')
+  })
+
+  it('非嘴臭风格不注入嘴臭规则', () => {
+    expect(buildSystemPrompt({ ...DEFAULT_SETTINGS, translationStyle: 'daily' })).not.toContain(
+      '嘴臭模式'
+    )
+    expect(buildSystemPrompt(DEFAULT_SETTINGS)).not.toContain('火力档位')
+  })
+
   it('包含东南亚式英语处理说明', () => {
     expect(buildSystemPrompt(DEFAULT_SETTINGS)).toContain('东南亚式英语')
   })

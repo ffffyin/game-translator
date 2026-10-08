@@ -3,7 +3,7 @@ import PageHeader from '../components/PageHeader.vue'
 import TermsManager from '../components/TermsManager.vue'
 import PhrasesManager from '../components/PhrasesManager.vue'
 import { useSettingsStore } from '../stores/settings'
-import { TRANSLATION_STYLES } from '../../shared/defaults'
+import { TRANSLATION_STYLES, TOXIC_LEVELS } from '../../shared/defaults'
 
 const s = useSettingsStore()
 
@@ -11,7 +11,7 @@ const styleNotes: Record<string, string> = {
   auto: '按原文自动判断语气',
   daily: '轻松自然的日常语气',
   pro: '竞技术语与报点表达',
-  toxic: '保留挑衅与嘴臭语气'
+  toxic: '三档火力，越往上越扎心'
 }
 </script>
 
@@ -31,6 +31,23 @@ const styleNotes: Record<string, string> = {
         <b>{{ t.label }}</b>
         <span>{{ styleNotes[t.value] }}</span>
       </button>
+
+      <div v-if="s.settings.translationStyle === 'toxic'" class="toxic-levels">
+        <div class="sub-lab">嘴臭火力</div>
+        <button
+          v-for="l in TOXIC_LEVELS"
+          :key="l.value"
+          class="lvl-opt"
+          :class="{ on: s.settings.toxicLevel === l.value }"
+          @click="s.update('toxicLevel', l.value)"
+        >
+          <b>{{ l.label }}</b>
+          <span>{{ l.note }}</span>
+        </button>
+        <p class="tip">
+          忠实原文：只会升级用词与语气，不会凭空编造原文没有的指控；仅针对游戏内表现开喷。
+        </p>
+      </div>
     </div>
 
     <div class="m-card">
@@ -118,6 +135,48 @@ const styleNotes: Record<string, string> = {
 .style-opt.on {
   border-color: var(--accent);
   background: var(--accent-soft);
+}
+.toxic-levels {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 11px;
+}
+.sub-lab {
+  font-size: 12px;
+  color: var(--txt2);
+  margin-bottom: 8px;
+}
+.lvl-opt {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  background: var(--card);
+  border: 1px dashed var(--line);
+  border-radius: 9px;
+  padding: 9px 12px;
+  margin-bottom: 7px;
+  cursor: pointer;
+  color: var(--txt);
+}
+.lvl-opt b {
+  font-size: 12.5px;
+}
+.lvl-opt span {
+  font-size: 11px;
+  color: var(--txt3);
+}
+.lvl-opt.on {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.tip {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--txt3);
 }
 .switches {
   display: flex;

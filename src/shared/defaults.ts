@@ -4,6 +4,7 @@ export interface AppSettings {
   languageTarget: string // 目标语言
   termLibrary: string // 术语库：general | dota2 | lol | pubg | cs2 | 自定义库 id
   translationStyle: string // auto | daily | pro | toxic
+  toxicLevel: string // 嘴臭火力档位：mild | trash | nuclear
   ocrEngine: string // local | vision
   themeMode: string // dark | light | system
   accentColor: string // hex
@@ -19,6 +20,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   languageTarget: 'zh-CN',
   termLibrary: 'general',
   translationStyle: 'auto',
+  toxicLevel: 'trash',
   ocrEngine: 'local',
   themeMode: 'dark',
   accentColor: '#F2B24C',
@@ -58,6 +60,17 @@ export const TRANSLATION_STYLES = [
   { value: 'pro', label: '职业玩家' },
   { value: 'toxic', label: '嘴臭' }
 ]
+
+// 嘴臭模式的火力档位（仅 translationStyle=toxic 时生效）
+export const TOXIC_LEVELS = [
+  { value: 'mild', label: '阴阳怪气', note: '夹枪带棒不爆粗' },
+  { value: 'trash', label: '标准嘴臭', note: '直接开喷，推荐' },
+  { value: 'nuclear', label: '火力全开', note: '骂到想退游' }
+]
+
+export function isToxicLevel(v: string): boolean {
+  return TOXIC_LEVELS.some((l) => l.value === v)
+}
 
 export const OCR_ENGINES = [
   { value: 'local', label: '本地 OCR', note: '免费 · 离线' },

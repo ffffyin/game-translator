@@ -6,6 +6,8 @@ import {
   LANGUAGES,
   TERM_LIBRARIES,
   TRANSLATION_STYLES,
+  TOXIC_LEVELS,
+  isToxicLevel,
   OCR_ENGINES
 } from '../../src/shared/defaults'
 import { isValidHex } from '../../src/shared/colors'
@@ -37,6 +39,13 @@ describe('界面选项常量', () => {
   })
   it('翻译风格四种', () => {
     expect(TRANSLATION_STYLES.map((l) => l.value)).toEqual(['auto', 'daily', 'pro', 'toxic'])
+  })
+  it('嘴臭火力三档且默认标准嘴臭', () => {
+    expect(TOXIC_LEVELS.map((l) => l.value)).toEqual(['mild', 'trash', 'nuclear'])
+    expect(DEFAULT_SETTINGS.toxicLevel).toBe('trash')
+    expect(SETTING_KEYS).toContain('toxicLevel')
+    expect(isToxicLevel('nuclear')).toBe(true)
+    expect(isToxicLevel('ultra')).toBe(false)
   })
   it('OCR 双通道', () => {
     expect(OCR_ENGINES.map((l) => l.value)).toEqual(['local', 'vision'])
