@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import PageHeader from '../components/PageHeader.vue'
 import { APP_VERSION } from '../../shared/version'
-import { AUTHOR_NAME, GITHUB_HANDLE, GITHUB_URL, QQ_NUMBER } from '../../shared/links'
+import { AUTHOR_NAME, CONTACT_LINKS, type ContactLink, QQ_NUMBER } from '../../shared/links'
 import type { LibView } from '../../shared/terms'
 import type { BackupFile } from '../../shared/api-contract'
 
@@ -22,13 +22,37 @@ async function doReset(): Promise<void> {
 }
 
 const author = AUTHOR_NAME
-const githubHandle = GITHUB_HANDLE
+const contacts = CONTACT_LINKS
 const qqNumber = QQ_NUMBER
 const qqCopied = ref(false)
 let qqTimer: ReturnType<typeof setTimeout> | null = null
 
-async function openGithub(): Promise<void> {
-  await window.api.openExternal(GITHUB_URL)
+// 联系方式图标：B 站 / 抖音的网址太长，界面只放图标 + 名称 + 简称
+const CONTACT_ICONS: Record<string, string> = {
+  github:
+    'M12 2a10 10 0 00-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.95 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 015 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.85-2.34 4.7-4.57 4.95.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0012 2z',
+  bilibili:
+    'M17.813 4.653h.854c1.51.054 2.769.578 3.773 1.574 1.004.995 1.524 2.249 1.56 3.76v7.36c-.036 1.51-.556 2.769-1.56 3.773s-2.262 1.524-3.773 1.56H5.333c-1.51-.036-2.769-.556-3.773-1.56S.036 17.858 0 16.347v-7.36c.036-1.511.556-2.765 1.56-3.76 1.004-.996 2.262-1.52 3.773-1.574h.774l-1.174-1.12a1.234 1.234 0 01-.373-.906c0-.356.124-.658.373-.907l.027-.027c.267-.249.573-.373.92-.373.347 0 .653.124.92.373L9.653 4.44c.071.071.134.147.187.227h4.267a.836.836 0 01.16-.227l2.853-2.747c.267-.249.573-.373.92-.373.347 0 .662.151.929.4.267.249.391.551.391.907 0 .355-.124.657-.373.906zM5.333 7.24c-.746.018-1.373.276-1.88.773-.506.498-.769 1.13-.786 1.894v7.52c.017.764.28 1.395.786 1.893.507.498 1.134.756 1.88.773h13.334c.746-.017 1.373-.275 1.88-.773.506-.498.769-1.129.786-1.893v-7.52c-.017-.765-.28-1.396-.786-1.894-.507-.497-1.134-.755-1.88-.773zM8 11.107c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c0-.373.129-.689.386-.947.258-.257.574-.386.947-.386zm8 0c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c0-.373.129-.689.386-.947.258-.257.574-.386.947-.386z',
+  douyin:
+    'M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z',
+  qq: 'M12 3c-2.9 0-5.2 2.2-5.2 5.1 0 .5.05 1 .13 1.45-.6.9-1.23 2.2-1.23 3.2 0 .5.2.83.47 1-.15.6-.5 1.5-1 2.3-.35.6-.1 1.35.6 1.5 1 .2 2.1-.1 2.9-.6.85.4 1.9.65 3.33.65s2.48-.25 3.33-.65c.8.5 1.9.8 2.9.6.7-.15.95-.9.6-1.5-.5-.8-.85-1.7-1-2.3.27-.17.47-.5.47-1 0-1-.63-2.3-1.23-3.2.08-.45.13-.95.13-1.45C17.2 5.2 14.9 3 12 3z'
+}
+
+function iconOf(row: ContactLink): string {
+  return CONTACT_ICONS[row.key] ?? ''
+}
+
+function displayOf(row: ContactLink): string {
+  if (row.key === 'qq' && qqCopied.value) return `已复制 ${qqNumber}`
+  return row.display
+}
+
+async function onContact(row: ContactLink): Promise<void> {
+  if (row.action === 'open' && row.url) {
+    await window.api.openExternal(row.url)
+    return
+  }
+  await copyQq()
 }
 
 async function copyQq(): Promise<void> {
@@ -89,24 +113,22 @@ onMounted(async () => {
       <p class="author">作者：{{ author }}</p>
 
       <div class="contact">
-        <button class="contact-row" type="button" title="在浏览器中打开 GitHub 主页" @click="openGithub">
+        <button
+          v-for="row in contacts"
+          :key="row.key"
+          class="contact-row"
+          type="button"
+          :title="row.title"
+          @click="onContact(row)"
+        >
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M12 2a10 10 0 00-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.95 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 015 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.85-2.34 4.7-4.57 4.95.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0012 2z"
-            />
+            <path :d="iconOf(row)" />
           </svg>
-          <span class="k">GitHub</span>
-          <code>{{ githubHandle }}</code>
-        </button>
-
-        <button class="contact-row" type="button" title="复制 QQ 号" @click="copyQq">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M12 3c-2.9 0-5.2 2.2-5.2 5.1 0 .5.05 1 .13 1.45-.6.9-1.23 2.2-1.23 3.2 0 .5.2.83.47 1-.15.6-.5 1.5-1 2.3-.35.6-.1 1.35.6 1.5 1 .2 2.1-.1 2.9-.6.85.4 1.9.65 3.33.65s2.48-.25 3.33-.65c.8.5 1.9.8 2.9.6.7-.15.95-.9.6-1.5-.5-.8-.85-1.7-1-2.3.27-.17.47-.5.47-1 0-1-.63-2.3-1.23-3.2.08-.45.13-.95.13-1.45C17.2 5.2 14.9 3 12 3z"
-            />
+          <span class="k">{{ row.label }}</span>
+          <code :class="{ copied: row.key === 'qq' && qqCopied }">{{ displayOf(row) }}</code>
+          <svg v-if="row.action === 'open'" class="ext" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14 4h6v6h-2V7.41l-7.29 7.3-1.42-1.42 7.3-7.29H14V4zM5 6h5v2H7v9h9v-3h2v5H5V6z" />
           </svg>
-          <span class="k">QQ</span>
-          <code>{{ qqCopied ? '已复制 ' + qqNumber : qqNumber }}</code>
         </button>
       </div>
 
@@ -273,6 +295,19 @@ h4 {
   color: var(--txt3);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.contact-row code.copied {
+  color: var(--teal);
+}
+.contact-row .ext {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  fill: var(--txt3);
+}
+.contact-row:hover .ext {
+  fill: var(--accent);
 }
 .txt {
   font-size: 12.5px;

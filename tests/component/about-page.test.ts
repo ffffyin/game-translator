@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import AboutPage from '../../src/renderer/pages/AboutPage.vue'
 import { APP_VERSION } from '../../src/shared/version'
-import { GITHUB_URL, QQ_NUMBER } from '../../src/shared/links'
+import { GITHUB_URL, QQ_NUMBER, BILIBILI_URL, DOUYIN_URL } from '../../src/shared/links'
 
 function installApi() {
   const api = {
@@ -50,7 +50,25 @@ describe('AboutPage 关于页', () => {
     const w = await mountPage()
     expect(w.text()).toContain('github.com/ffffyin')
     expect(w.text()).toContain('316606176')
-    expect(w.findAll('.contact-row')).toHaveLength(2)
+    expect(w.findAll('.contact-row')).toHaveLength(4)
+  })
+
+  it('展示 B 站与抖音入口，且只显示简称不显示完整网址', async () => {
+    installApi()
+    const w = await mountPage()
+    const rows = w.findAll('.contact-row')
+    expect(rows[1].text()).toContain('哔哩哔哩')
+    expect(rows[1].text()).toContain('UID 12945227')
+    expect(rows[2].text()).toContain('抖音')
+    expect(rows[2].text()).toContain('打开主页')
+    // 长网址不显示在界面上
+    expect(w.text()).not.toContain('space.bilibili.com/12945227?spm')
+    expect(w.text()).not.toContain('v.douyin.com/VjbsvjE5RAQ')
+    // 可跳转的行才带「浏览器打开」角标
+    expect(rows[0].find('.ext').exists()).toBe(true)
+    expect(rows[1].find('.ext').exists()).toBe(true)
+    expect(rows[2].find('.ext').exists()).toBe(true)
+    expect(rows[3].find('.ext').exists()).toBe(false)
   })
 
   it('点击 GitHub 行用系统浏览器打开主页', async () => {
@@ -60,15 +78,26 @@ describe('AboutPage 关于页', () => {
     await vi.waitFor(() => expect(api.openExternal).toHaveBeenCalledWith(GITHUB_URL))
   })
 
+  it('点击 B 站 / 抖音行用系统浏览器打开对应主页', async () => {
+    const api = installApi()
+    const w = await mountPage()
+    const rows = w.findAll('.contact-row')
+    await rows[1].trigger('click')
+    await vi.waitFor(() => expect(api.openExternal).toHaveBeenCalledWith(BILIBILI_URL))
+    await rows[2].trigger('click')
+    await vi.waitFor(() => expect(api.openExternal).toHaveBeenCalledWith(DOUYIN_URL))
+    expect(api.openExternal).toHaveBeenCalledTimes(2)
+  })
+
   it('点击 QQ 行复制号码并给出反馈', async () => {
     installApi()
     const writeText = vi.fn(async () => undefined)
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
     const w = await mountPage()
 
-    await w.findAll('.contact-row')[1].trigger('click')
+    await w.findAll('.contact-row')[3].trigger('click')
     await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith(QQ_NUMBER))
-    expect(w.findAll('.contact-row')[1].text()).toContain('已复制')
+    expect(w.findAll('.contact-row')[3].text()).toContain('已复制')
   })
 
   it('显示数据目录且可点击打开', async () => {
