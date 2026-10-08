@@ -38,6 +38,17 @@ export class UsageService {
       )
   }
 
+  // 归档：只保留最近 days 天的明细，避免 totals()/byConfig() 长期全表扫描
+  prune(days = 90): number {
+    const r = this.db
+      .prepare(
+        `DELETE FROM usage_logs
+         WHERE ts < datetime('now', 'localtime', ?)`
+      )
+      .run(`-${days} days`)
+    return Number(r.changes)
+  }
+
   range(startISO: string, endISO: string) {
     return this.db
       .prepare('SELECT * FROM usage_logs WHERE ts >= ? AND ts <= ? ORDER BY ts DESC')

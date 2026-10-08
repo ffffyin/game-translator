@@ -10,6 +10,7 @@ import { createTray } from './tray'
 import { ensureCleanInstallData, wipeDatabaseFiles } from './services/install-guard'
 import { SettingsService } from './services/settings'
 import { HotkeyManager } from './services/hotkey-manager'
+import { UsageService } from './services/usage'
 import { actionTranslateReplace, actionTranslateClipboard } from './services/actions'
 import { actionRegionScreenshot, actionFullscreenScreenshot } from './services/screenshot-actions'
 import { runCaptureSelfcheck, runOverlaySelfcheck, runRegionSelfcheck } from './services/selfcheck'
@@ -192,6 +193,13 @@ app.whenReady().then(async () => {
   const termSync = syncBuiltinTerms(db, resourcesRoot)
   if (termSync.updated.length) log('INFO', `内置术语库已更新：${termSync.updated.join(', ')}`)
   if (termSync.added.length) log('INFO', `内置术语库已新增：${termSync.added.join(', ')}`)
+  // 用量日志归档：只保留最近 90 天明细
+  try {
+    const pruned = new UsageService(db).prune(90)
+    if (pruned > 0) log('INFO', `用量日志归档：清理 ${pruned} 条`)
+  } catch (e) {
+    log('WARN', '用量日志归档失败：' + errToText(e))
+  }
   // 常用语种子（幂等）
   seedDefaultPhrases(db, resourcesRoot)
 

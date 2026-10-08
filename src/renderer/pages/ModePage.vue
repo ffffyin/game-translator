@@ -3,7 +3,7 @@ import PageHeader from '../components/PageHeader.vue'
 import TermsManager from '../components/TermsManager.vue'
 import PhrasesManager from '../components/PhrasesManager.vue'
 import { useSettingsStore } from '../stores/settings'
-import { TRANSLATION_STYLES, TOXIC_LEVELS } from '../../shared/defaults'
+import { TRANSLATION_STYLES, TOXIC_LEVELS, OCR_ENGINES } from '../../shared/defaults'
 
 const s = useSettingsStore()
 
@@ -48,6 +48,23 @@ const styleNotes: Record<string, string> = {
           忠实原文：只会升级用词与语气，不会凭空编造原文没有的指控；仅针对游戏内表现开喷。
         </p>
       </div>
+    </div>
+
+    <div class="m-card">
+      <div class="lab">截图识别引擎</div>
+      <button
+        v-for="e in OCR_ENGINES"
+        :key="e.value"
+        class="style-opt"
+        :class="{ on: s.settings.ocrEngine === e.value }"
+        @click="s.update('ocrEngine', e.value)"
+      >
+        <b>{{ e.label }}</b>
+        <span>{{ e.note }}</span>
+      </button>
+      <p class="tip">
+        AI 视觉需要在「模型配置」里为默认模型开启视觉能力并填写视觉模型名。
+      </p>
     </div>
 
     <div class="m-card">

@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { join } from 'path'
+import { tmpdir } from 'os'
 import { applyMigrations } from '../../src/main/db/schema'
 import { UsageService } from '../../src/main/services/usage'
 import { Db } from '../../src/main/services/db-wrapper'
@@ -69,5 +71,35 @@ describe('UsageService 按模型分组', () => {
     expect(d.tokens_in).toBe(7)
     expect(rows.find((r) => r.config_id === 99)!.name).toBe('已删除模型')
     db.close()
+  })
+})
+
+describe('用量日志归档', () => {
+  it('prune 只保留最近 N 天，返回删除条数', () => {
+    const p = join(tmpdir(), `gt-usage-prune-${Date.now()}-${Math.random().toString(36).slice(2)}.db`)
+    const db = new Db(p)
+    applyMigrations(db)
+    const svc = new UsageService(db)
+    svc.log({ kind: 'text', chars: 10 })
+    db.prepare("INSERT INTO usage_logs (ts, kind, chars) VALUES (?, 'text', 5)").run(
+      '2020-01-01T00:00:00.000Z'
+    )
+    db.prepare("INSERT INTO usage_logs (ts, kind, chars) VALUES (?, 'text', 5)").run(
+      '2020-02-01T00:00:00.000Z'
+    )
+    expect(svc.totals().count).toBe(3)
+    expect(svc.prune(90)).toBe(2)
+    expect(svc.totals().count).toBe(1)
+  })
+
+  it('schema 迁移后存在用量索引', () => {
+    const p = join(tmpdir(), `gt-usage-idx-${Date.now()}-${Math.random().toString(36).slice(2)}.db`)
+    const db = new Db(p)
+    applyMigrations(db)
+    const idx = db
+      .prepare("SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'")
+      .all() as Array<{ name: string }>
+    expect(idx.map((i) => i.name)).toContain('idx_usage_logs_ts')
+    expect(idx.map((i) => i.name)).toContain('idx_terms_lib')
   })
 })

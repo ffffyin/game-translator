@@ -2,7 +2,7 @@
 // 每个迁移必须幂等（IF NOT EXISTS），并在一个事务内执行
 import type { Db } from '../services/db-wrapper'
 
-export const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 2
 
 export const MIGRATIONS: Record<number, string[]> = {
   1: [
@@ -75,6 +75,12 @@ export const MIGRATIONS: Record<number, string[]> = {
        schema_version INTEGER,
        app_version TEXT
      )`
+  ],
+  // 追加索引（迁移必须幂等，老库升级后同样生效）
+  2: [
+    `CREATE INDEX IF NOT EXISTS idx_usage_logs_ts ON usage_logs(ts)`,
+    `CREATE INDEX IF NOT EXISTS idx_terms_lib ON terms(lib_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_terms_lib_source ON terms(lib_id, source_text)`
   ]
 }
 
