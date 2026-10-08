@@ -59,6 +59,7 @@ const api: ApiContract = {
 
   regionSelect: (rect) => ipcRenderer.send('region:select', rect),
   regionCancel: () => ipcRenderer.send('region:cancel'),
+  regionReady: () => ipcRenderer.send('region:ready'),
 
   onResultData: (cb) => {
     const listener = (_e: unknown, d: Parameters<typeof cb>[0]): void => cb(d)

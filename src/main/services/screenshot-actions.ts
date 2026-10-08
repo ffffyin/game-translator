@@ -11,6 +11,7 @@ import { recognizeText } from './ocr'
 import { translateOcrLines, type OcrLinePair } from './translate'
 import { openResultOverlay, type AnchorRect } from './result-overlay'
 import { resolveGlossary } from './term-match'
+import { log } from './logger'
 import { LANGUAGES, TRANSLATION_STYLES, OCR_ENGINES, type AppSettings } from '../../shared/defaults'
 import type { ResultData } from '../../shared/result'
 
@@ -50,6 +51,7 @@ function buildResultData(
 async function run(ctx: ScreenshotContext, mode: 'region' | 'full'): Promise<void> {
   if (busy) return
   busy = true
+  log('INFO', `截图翻译开始 mode=${mode}`)
   const { win, db } = ctx
   const settingsSvc = new SettingsService(db)
   const models = new ModelConfigService(db)
@@ -120,6 +122,10 @@ async function run(ctx: ScreenshotContext, mode: 'region' | 'full'): Promise<voi
       notify(win, { type: 'error', message: '未识别到文字，请确认选区内包含聊天文字' })
       return
     }
+    log(
+      'INFO',
+      `识别完成 engine=${recognized.engine} lines=${recognized.lines.length} chars=${recognized.text.length}`
+    )
 
     notify(win, { type: 'loading', message: '正在翻译…' })
     const lines = recognized.lines.length
@@ -127,7 +133,18 @@ async function run(ctx: ScreenshotContext, mode: 'region' | 'full'): Promise<voi
       : recognized.text.split('\n')
     const s0 = settingsSvc.getAll()
     const terms = resolveGlossary(db, s0, recognized.text)
-    const translated = await translateOcrLines({ lines, config, settings: s0, terms })
+    const translated = await translateOcrLines({
+      lines,
+      config,
+      settings: s0,
+      terms,
+      onProgress: (sec) =>
+        notify(win, {
+          type: 'loading',
+          message: `正在翻译… 已等待 ${sec} 秒，画面文字较多时可能需要 1-3 分钟`
+        })
+    })
+    log('INFO', `翻译完成 pairs=${translated.pairs.length}`)
 
     const overlay = openResultOverlay({
       anchor,

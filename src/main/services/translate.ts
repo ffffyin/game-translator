@@ -1,8 +1,12 @@
 import OpenAI from 'openai'
+import { writeFileSync } from 'fs'
+import { join } from 'path'
+import { app } from 'electron'
 import type { ModelConfig } from '../../shared/model'
 import type { AppSettings } from '../../shared/defaults'
 import { buildMessages, buildSystemPrompt, type GlossaryTerm } from './translate-prompt'
 import { dpapiDecrypt } from './crypto'
+import { log } from './logger'
 
 export interface TranslateRequest {
   text: string
@@ -19,7 +23,7 @@ export interface TranslateResult {
 
 export async function createClient(config: ModelConfig): Promise<OpenAI> {
   const apiKey = config.api_key_enc ? await dpapiDecrypt(config.api_key_enc) : ''
-  return new OpenAI({ apiKey, baseURL: config.base_url })
+  return new OpenAI({ apiKey, baseURL: config.base_url, timeout: 180000 })
 }
 
 export async function translateText(req: TranslateRequest): Promise<TranslateResult> {
@@ -57,21 +61,43 @@ export async function translateOcrLines(opts: {
   config: ModelConfig
   settings: AppSettings
   terms?: GlossaryTerm[]
+  onProgress?: (elapsedSec: number) => void
 }): Promise<OcrLineTranslateResult> {
-  const { lines, config, settings, terms } = opts
+  const { lines, config, settings, terms, onProgress } = opts
   const client = await createClient(config)
   let system =
     buildSystemPrompt(settings, terms) +
     '\n用户给的是游戏画面中按顺序识别出的多行文字。请逐行翻译：' +
     '输出行数必须与输入完全一致、顺序一一对应；不要合并、拆分、新增行，也不要加行号或解释。'
-  const completion = await client.chat.completions.create({
-    model: config.text_model,
-    temperature: 0.2,
-    messages: [
-      { role: 'system', content: system },
-      { role: 'user', content: lines.map((l, i) => `${i + 1}. ${l}`).join('\n') }
-    ]
-  })
+  const t0 = Date.now()
+  const messages = [
+    { role: 'system', content: system },
+    { role: 'user', content: lines.map((l, i) => `${i + 1}. ${l}`).join('\n') }
+  ]
+  try {
+    writeFileSync(
+      join(app.getPath('userData'), 'exports', 'last-ocr-request.json'),
+      JSON.stringify({ model: config.text_model, messages }, null, 2),
+      'utf8'
+    )
+  } catch {
+    // 诊断文件写入失败不影响主流程
+  }
+  const waitLog = setInterval(() => {
+    const sec = Math.round((Date.now() - t0) / 1000)
+    log('INFO', `OCR翻译请求等待中 ${sec}s`)
+    onProgress?.(sec)
+  }, 15000)
+  let completion
+  try {
+    completion = await client.chat.completions.create({
+      model: config.text_model,
+      temperature: 0.2,
+      messages
+    })
+  } finally {
+    clearInterval(waitLog)
+  }
   const raw = completion.choices[0]?.message?.content ?? ''
   const outLines = raw
     .split('\n')

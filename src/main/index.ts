@@ -99,6 +99,14 @@ app.whenReady().then(async () => {
   try {
     electronApp.setAppUserModelId('com.fygod.gametranslator')
 
+    // 全局启动路由监听：所有窗口（框选/结果/OCR）的 preload 都能同步拿到，
+    // 避免 sendSync 无监听者时阻塞整个 preload
+    ipcMain.removeAllListeners('app:getStartupRoute')
+    ipcMain.on('app:getStartupRoute', (e) => {
+      const eq = process.argv.find((x) => x.startsWith('--route='))
+      e.returnValue = eq ? eq.split('=').slice(1).join('=') : ''
+    })
+
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)
     })
@@ -171,10 +179,6 @@ app.whenReady().then(async () => {
   // 自检模式：抓取/OCR 或悬浮窗视觉核对，不走常规窗口
   const scFlag = process.argv.find((x) => x.startsWith('--selfcheck='))
   if (scFlag) {
-    // 自检模式未注册常规 IPC；补同步监听，避免 preload 的 sendSync 阻塞页面加载
-    ipcMain.on('app:getStartupRoute', (e) => {
-      e.returnValue = undefined
-    })
     const mode = scFlag.split('=').slice(1).join('=')
     if (mode === 'capture') {
       const report = await runCaptureSelfcheck(root)

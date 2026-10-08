@@ -25,6 +25,7 @@ export function pickRegion(): Promise<RegionResult | null> {
       transparent: true,
       fullscreen: false,
       alwaysOnTop: false,
+      show: false, // 首帧绘制完成后再显示，避免渲染失败时透明窗吞掉鼠标
       skipTaskbar: true,
       resizable: false,
       movable: false,
@@ -43,17 +44,31 @@ export function pickRegion(): Promise<RegionResult | null> {
     })
 
     win.setAlwaysOnTop(true, 'screen-saver')
+    win.once('ready-to-show', () => {
+      if (!win.isDestroyed()) win.show()
+    })
 
     let settled = false
+    let safetyTimer: NodeJS.Timeout | null = setTimeout(() => finish(null), 6000)
+    const clearSafety = (): void => {
+      if (safetyTimer) {
+        clearTimeout(safetyTimer)
+        safetyTimer = null
+      }
+    }
     const finish = (v: RegionResult | null): void => {
       if (settled) return
       settled = true
+      clearSafety()
       win.webContents.ipc.removeAllListeners('region:select')
       win.webContents.ipc.removeAllListeners('region:cancel')
+      win.webContents.ipc.removeAllListeners('region:ready')
       if (!win.isDestroyed()) win.close()
       resolve(v)
     }
 
+    // 页面就绪：渲染与脚本均已运行，解除安全超时
+    win.webContents.ipc.on('region:ready', () => clearSafety())
     win.webContents.ipc.on('region:select', (_e, rect: RegionRect) => {
       finish({
         rect,
@@ -63,6 +78,11 @@ export function pickRegion(): Promise<RegionResult | null> {
       })
     })
     win.webContents.ipc.on('region:cancel', () => finish(null))
+    // 兜底 ESC：即使页面脚本未加载，Chromium 仍会派发输入事件
+    win.webContents.on('before-input-event', (_e, input) => {
+      if (input.key === 'Escape' && input.type === 'keyDown') finish(null)
+    })
+    win.webContents.on('did-fail-load', () => finish(null))
     win.on('closed', () => finish(null))
 
     if (is.dev && process.env['ELECTRON_RENDERER_URL']) {

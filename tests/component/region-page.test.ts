@@ -4,17 +4,26 @@ import { describe, it, expect, vi, beforeAll } from 'vitest'
 describe('区域框选页 region/main.ts', () => {
   const regionSelect = vi.fn()
   const regionCancel = vi.fn()
+  const regionReady = vi.fn()
 
   beforeAll(async () => {
     document.body.innerHTML =
       '<div id="sel" hidden><span id="size"></span></div><div id="tip">tip</div>'
-    ;(window as unknown as { api: unknown }).api = { regionSelect, regionCancel }
+    ;(window as unknown as { api: unknown }).api = {
+      regionSelect,
+      regionCancel,
+      regionReady
+    }
     await import('../../src/renderer/region/main.ts')
   })
 
   function fire(type: string, init: Record<string, number>): void {
     document.dispatchEvent(new MouseEvent(type, { bubbles: true, ...init }))
   }
+
+  it('脚本加载后通知主进程 region:ready', () => {
+    expect(regionReady).toHaveBeenCalled()
+  })
 
   it('正常拖拽结束后按选区矩形调用 regionSelect', () => {
     fire('mousedown', { button: 0, clientX: 100, clientY: 100 })

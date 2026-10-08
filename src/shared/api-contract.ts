@@ -100,6 +100,7 @@ export interface ApiContract {  ping: () => Promise<string>
 
   regionSelect: (rect: RegionRect) => void
   regionCancel: () => void
+  regionReady: () => void
 
   onResultData: (cb: (d: ResultData) => void) => () => void
   resultRetranslate: (req: RetranslateRequest) => Promise<RebindResult>

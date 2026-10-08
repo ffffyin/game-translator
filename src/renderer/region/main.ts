@@ -66,3 +66,6 @@ document.addEventListener('mousedown', onDown)
 document.addEventListener('mousemove', onMove)
 document.addEventListener('mouseup', onUp)
 document.addEventListener('keydown', onKey)
+
+// 通知主进程页面已就绪（用于安全超时判定）
+window.api.regionReady()

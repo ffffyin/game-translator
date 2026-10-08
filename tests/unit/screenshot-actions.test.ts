@@ -210,6 +210,31 @@ describe('截图翻译动作（快捷键 3/4）', () => {
     expect(args.anchor).toEqual({ x: 0, y: 0, width: 1920, height: 1080 })
   })
 
+  it('翻译等待中的进度回调：通知显示已等待秒数', async () => {
+    hoisted.captureDisplayAtCursor.mockResolvedValue({
+      image: fakeImage,
+      displayId: 1,
+      scaleFactor: 1,
+      bounds: { x: 0, y: 0, width: 1920, height: 1080 }
+    })
+    hoisted.recognizeText.mockResolvedValue({
+      engine: 'local',
+      text: 'gg',
+      lines: [{ text: 'gg', confidence: 90 }],
+      tokensIn: 1
+    })
+    hoisted.translateOcrLines.mockImplementation(
+      async (opts: { onProgress?: (s: number) => void }) => {
+        opts.onProgress?.(30)
+        return { pairs: [{ original: 'gg', translation: '打得不错' }], tokensIn: 1, tokensOut: 1 }
+      }
+    )
+    const c = ctx()
+    await actionFullscreenScreenshot(c)
+    const loading = notes(c).find((n) => n.type === 'loading' && n.message.includes('已等待 30 秒'))
+    expect(loading).toBeDefined()
+  })
+
   it('识别/翻译过程抛错：错误原因透出，不产生悬浮窗', async () => {
     hoisted.pickRegion.mockResolvedValue({
       rect: { x: 10, y: 10, width: 100, height: 100 },

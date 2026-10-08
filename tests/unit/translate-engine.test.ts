@@ -1,17 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const hoisted = vi.hoisted(() => ({ create: vi.fn() }))
+const hoisted = vi.hoisted(() => ({
+  create: vi.fn(),
+  lastOptions: null as null | Record<string, unknown>
+}))
 
 vi.mock('openai', () => ({
   default: class FakeOpenAI {
     chat = { completions: { create: hoisted.create } }
+    constructor(opts: Record<string, unknown>) {
+      hoisted.lastOptions = opts
+    }
   }
+}))
+vi.mock('electron', () => ({
+  app: { getPath: () => require('os').tmpdir() }
 }))
 vi.mock('../../src/main/services/crypto', () => ({
   dpapiDecrypt: async (s: string) => s
 }))
 
-import { translateOcrLines, testConnection } from '../../src/main/services/translate'
+import { createClient, translateOcrLines, testConnection } from '../../src/main/services/translate'
 import type { ModelConfig } from '../../shared/model'
 import { DEFAULT_SETTINGS } from '../../src/shared/defaults'
 
@@ -62,6 +71,33 @@ describe('translateOcrLines OCR 多行翻译', () => {
     expect(r.pairs).toHaveLength(1)
     expect(r.pairs[0].original).toBe('a\nb\nc')
     expect(r.pairs[0].translation).toContain('两行')
+  })
+
+  it('等待期间每 15 秒通过 onProgress 回报已等待秒数', async () => {
+    vi.useFakeTimers()
+    hoisted.create.mockImplementation(
+      () => new Promise(() => undefined) // 永不返回
+    )
+    const onProgress = vi.fn()
+    translateOcrLines({
+      lines: ['a'],
+      config,
+      settings: DEFAULT_SETTINGS,
+      onProgress
+    })
+    await vi.advanceTimersByTimeAsync(45000)
+    expect(onProgress).toHaveBeenCalledTimes(3)
+    expect(onProgress).toHaveBeenNthCalledWith(1, 15)
+    expect(onProgress).toHaveBeenNthCalledWith(3, 45)
+    vi.useRealTimers()
+  })
+})
+
+describe('createClient 客户端配置', () => {
+  it('设置 180 秒请求超时，避免画面文字多时无限等待', async () => {
+    await createClient(config)
+    expect(hoisted.lastOptions).not.toBeNull()
+    expect(hoisted.lastOptions!.timeout).toBe(180000)
   })
 })
 
