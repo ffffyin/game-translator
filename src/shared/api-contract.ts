@@ -7,7 +7,7 @@ import type { LibView, TermView, TermInput } from './terms'
 import type { PhraseView } from './phrases'
 
 export interface NotifyPayload {
-  type: 'ok' | 'error' | 'loading'
+  type: 'ok' | 'error' | 'loading' | 'info'
   message: string
 }
 

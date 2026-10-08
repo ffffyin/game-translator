@@ -117,6 +117,43 @@ describe('译文悬浮窗 ResultView', () => {
     expect(api.resultSetPinned).toHaveBeenCalledWith(false)
   })
 
+  it('组合模式降级时徽章说明实际用了 AI，并显示降级标记', async () => {
+    const { wrapper, push } = setup()
+    push({
+      ...sample,
+      engine: 'vision',
+      degraded: true,
+      engineOptions: [
+        { value: 'local', label: '本地 OCR' },
+        { value: 'vision', label: 'AI 视觉' },
+        { value: 'hybrid', label: '本地 + AI' }
+      ],
+      canVision: true
+    })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('本地失败已降级')
+    expect(wrapper.find('.degraded-tip').exists()).toBe(true)
+    // 组合模式不因视觉不可用而禁用
+    const hybrid = wrapper.findAll('option').find((o) => o.text() === '本地 + AI')!
+    expect(hybrid.attributes('disabled')).toBeUndefined()
+  })
+
+  it('可选本地+AI 组合通道并原样下发', async () => {
+    const { wrapper, api, push } = setup()
+    push({
+      ...sample,
+      currentEngine: 'hybrid',
+      engineOptions: [
+        { value: 'local', label: '本地 OCR' },
+        { value: 'hybrid', label: '本地 + AI' }
+      ]
+    })
+    await wrapper.vm.$nextTick()
+    const buttons = wrapper.findAll('button')
+    await buttons.find((b) => b.text().includes('重新翻译'))!.trigger('click')
+    expect(api.resultRetranslate).toHaveBeenCalledWith({ engine: 'hybrid', style: 'auto' })
+  })
+
   it('点击关闭按钮通知主进程', async () => {
     const { wrapper, api, push } = setup()
     push(sample)

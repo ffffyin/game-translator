@@ -63,7 +63,8 @@ const styleNotes: Record<string, string> = {
         <span>{{ e.note }}</span>
       </button>
       <p class="tip">
-        AI 视觉需要在「模型配置」里为默认模型开启视觉能力并填写视觉模型名。
+        「本地 + AI」先用本地 OCR，识别报错或识别不到文字时自动改用 AI 视觉，并在结果窗标注已降级。<br />
+        AI 视觉需要在「模型配置」里为默认模型开启视觉能力并填写视觉模型名；未开启时组合模式会自动退化为本地识别。
       </p>
     </div>
 

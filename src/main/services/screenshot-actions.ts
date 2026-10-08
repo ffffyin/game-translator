@@ -12,7 +12,14 @@ import { translateOcrLines, type OcrLinePair } from './translate'
 import { openResultOverlay, type AnchorRect } from './result-overlay'
 import { resolveGlossary } from './term-match'
 import { log } from './logger'
-import { LANGUAGES, TRANSLATION_STYLES, OCR_ENGINES, type AppSettings } from '../../shared/defaults'
+import {
+  LANGUAGES,
+  TRANSLATION_STYLES,
+  OCR_ENGINES,
+  canUseVision,
+  normalizeOcrEngine,
+  type AppSettings
+} from '../../shared/defaults'
 import type { ResultData } from '../../shared/result'
 
 export interface ScreenshotContext {
@@ -32,7 +39,8 @@ function buildResultData(
   settings: AppSettings,
   engine: 'local' | 'vision',
   pairs: OcrLinePair[],
-  models: ModelConfigService
+  models: ModelConfigService,
+  degraded = false
 ): ResultData {
   const visionModel = models.getDefault()
   const canVision = !!visionModel && visionModel.vision_enabled === 1 && !!visionModel.vision_model
@@ -44,7 +52,8 @@ function buildResultData(
     currentStyle: settings.translationStyle,
     engineOptions: OCR_ENGINES.map((o) => ({ value: o.value, label: o.label })),
     currentEngine: engine,
-    canVision
+    canVision,
+    degraded
   }
 }
 
@@ -98,10 +107,9 @@ async function run(ctx: ScreenshotContext, mode: 'region' | 'full'): Promise<voi
       notify(win, { type: 'error', message: '请先在「模型配置」中添加并选择默认模型' })
       return
     }
-    const engine = (settingsSvc.get('ocrEngine') === 'vision' ? 'vision' : 'local') as
-      | 'local'
-      | 'vision'
-    if (engine === 'vision' && (config.vision_enabled !== 1 || !config.vision_model)) {
+    const engine = normalizeOcrEngine(settingsSvc.get('ocrEngine'))
+    // 只有「纯 AI 视觉」才强制要求视觉能力；组合模式没有视觉通道时退化为本地
+    if (engine === 'vision' && !canUseVision(config)) {
       notify(win, {
         type: 'error',
         message: '默认模型未启用视觉能力，请到「模型配置」开启或改用本地 OCR'
@@ -109,14 +117,17 @@ async function run(ctx: ScreenshotContext, mode: 'region' | 'full'): Promise<voi
       return
     }
 
-    notify(win, { type: 'loading', message: '正在识别画面文字…' })
+    notify(win, {
+      type: 'loading',
+      message: engine === 'hybrid' ? '正在识别画面文字（本地优先）…' : '正在识别画面文字…'
+    })
     const png = toPngBuffer(image)
     const dataUrl = toPngDataUrl(image)
     const recognized = await recognizeText({
       engine,
       png,
       dataUrl,
-      config: engine === 'vision' ? config : undefined
+      config
     })
     if (!recognized.text) {
       notify(win, { type: 'error', message: '未识别到文字，请确认选区内包含聊天文字' })
@@ -124,8 +135,11 @@ async function run(ctx: ScreenshotContext, mode: 'region' | 'full'): Promise<voi
     }
     log(
       'INFO',
-      `识别完成 engine=${recognized.engine} lines=${recognized.lines.length} chars=${recognized.text.length}`
+      `识别完成 engine=${recognized.engine}${recognized.degraded ? '(本地失败降级)' : ''} lines=${recognized.lines.length} chars=${recognized.text.length}`
     )
+    if (recognized.degraded) {
+      notify(win, { type: 'info', message: '本地识别未取到文字，已改用 AI 视觉' })
+    }
 
     notify(win, { type: 'loading', message: '正在翻译…' })
     const lines = recognized.lines.length
@@ -159,16 +173,24 @@ async function run(ctx: ScreenshotContext, mode: 'region' | 'full'): Promise<voi
           engine: req.engine,
           png,
           dataUrl,
-          config: req.engine === 'vision' ? config : undefined
+          config
         })
         if (!rec.text) throw new Error('未识别到文字')
         const recLines = rec.lines.length ? rec.lines.map((l) => l.text) : rec.text.split('\n')
         const reTerms = resolveGlossary(db, s, rec.text)
         const tt = await translateOcrLines({ lines: recLines, config, settings: s, terms: reTerms })
-        return buildResultData(s, rec.engine, tt.pairs, models)
+        return buildResultData(s, rec.engine, tt.pairs, models, !!rec.degraded)
       }
     })
-    overlay.setData(buildResultData(settingsSvc.getAll(), recognized.engine, translated.pairs, models))
+    overlay.setData(
+      buildResultData(
+        settingsSvc.getAll(),
+        recognized.engine,
+        translated.pairs,
+        models,
+        !!recognized.degraded
+      )
+    )
 
     usage.log({
       configId: config.id,

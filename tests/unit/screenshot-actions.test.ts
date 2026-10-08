@@ -235,6 +235,66 @@ describe('截图翻译动作（快捷键 3/4）', () => {
     expect(loading).toBeDefined()
   })
 
+  it('组合模式：即使模型没开视觉能力也允许执行（退化为本地）', async () => {
+    const settings = new SettingsService(db)
+    await settings.set('ocrEngine', 'hybrid')
+    hoisted.captureDisplayAtCursor.mockResolvedValue({
+      image: fakeImage,
+      displayId: 1,
+      scaleFactor: 1,
+      bounds: { x: 0, y: 0, width: 1920, height: 1080 }
+    })
+    hoisted.recognizeText.mockResolvedValue({
+      engine: 'local',
+      text: 'gg',
+      lines: [{ text: 'gg', confidence: 90 }],
+      tokensIn: 0
+    })
+    hoisted.translateOcrLines.mockResolvedValue({
+      pairs: [{ original: 'gg', translation: '打得不错' }],
+      tokensIn: 1,
+      tokensOut: 1
+    })
+    const c = ctx()
+    await actionFullscreenScreenshot(c)
+    expect(notes(c).some((n) => n.type === 'error')).toBe(false)
+    // 组合模式必须把 config 透传给识别层，否则无法降级到 AI
+    const arg = hoisted.recognizeText.mock.calls[0][0] as { engine: string; config?: unknown }
+    expect(arg.engine).toBe('hybrid')
+    expect(arg.config).toBeTruthy()
+  })
+
+  it('组合模式降级：悬浮窗标记 degraded 并提示已改用 AI', async () => {
+    const settings = new SettingsService(db)
+    await settings.set('ocrEngine', 'hybrid')
+    hoisted.captureDisplayAtCursor.mockResolvedValue({
+      image: fakeImage,
+      displayId: 1,
+      scaleFactor: 1,
+      bounds: { x: 0, y: 0, width: 1920, height: 1080 }
+    })
+    hoisted.recognizeText.mockResolvedValue({
+      engine: 'vision',
+      degraded: true,
+      text: 'gg',
+      lines: [{ text: 'gg', confidence: 90 }],
+      tokensIn: 5
+    })
+    hoisted.translateOcrLines.mockResolvedValue({
+      pairs: [{ original: 'gg', translation: '打得不错' }],
+      tokensIn: 1,
+      tokensOut: 1
+    })
+    const c = ctx()
+    await actionFullscreenScreenshot(c)
+    const data = hoisted.openResultOverlay.mock.results[0].value.setData.mock.calls[0][0]
+    expect(data.degraded).toBe(true)
+    expect(data.engineOptions.map((o: { value: string }) => o.value)).toContain('hybrid')
+    expect(
+      notes(c).some((n) => n.type === 'info' && n.message.includes('AI 视觉'))
+    ).toBe(true)
+  })
+
   it('识别/翻译过程抛错：错误原因透出，不产生悬浮窗', async () => {
     hoisted.pickRegion.mockResolvedValue({
       rect: { x: 10, y: 10, width: 100, height: 100 },

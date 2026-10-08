@@ -77,6 +77,12 @@ onMounted(() =>
   background: var(--accent);
   animation: pulse 1s infinite;
 }
+.toast.info {
+  border-left-color: var(--accent);
+}
+.toast.info .dot {
+  background: var(--accent);
+}
 @keyframes pulse {
   50% {
     opacity: 0.3;

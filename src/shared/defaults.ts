@@ -5,7 +5,7 @@ export interface AppSettings {
   termLibrary: string // 术语库：general | dota2 | lol | pubg | cs2 | 自定义库 id
   translationStyle: string // auto | daily | pro | toxic
   toxicLevel: string // 嘴臭火力档位：mild | trash | nuclear
-  ocrEngine: string // local | vision
+  ocrEngine: string // local | vision | hybrid
   themeMode: string // dark | light | system
   accentColor: string // hex
   phraseTranslateBeforeSend: number // 0 | 1
@@ -72,7 +72,30 @@ export function isToxicLevel(v: string): boolean {
   return TOXIC_LEVELS.some((l) => l.value === v)
 }
 
-export const OCR_ENGINES = [
+// 截图识别通道：local 纯本地 / vision 纯 AI / hybrid 本地优先、失败自动降级 AI
+export type OcrEngine = 'local' | 'vision' | 'hybrid'
+// 实际执行识别的通道（hybrid 最终也会落到其中之一）
+export type OcrRunEngine = 'local' | 'vision'
+
+export const OCR_ENGINES: Array<{ value: OcrEngine; label: string; note: string }> = [
   { value: 'local', label: '本地 OCR', note: '免费 · 离线' },
-  { value: 'vision', label: 'AI 视觉', note: '更准 · 耗额度' }
+  { value: 'vision', label: 'AI 视觉', note: '更准 · 耗额度' },
+  { value: 'hybrid', label: '本地 + AI', note: '本地优先 · 识别不到再交给 AI' }
 ]
+
+export function isOcrEngine(v: unknown): v is OcrEngine {
+  return v === 'local' || v === 'vision' || v === 'hybrid'
+}
+
+// 非法值一律回落 local，避免脏数据让识别流程走进意外分支
+export function normalizeOcrEngine(v: unknown): OcrEngine {
+  return isOcrEngine(v) ? v : 'local'
+}
+
+// 模型是否真的可用视觉通道
+export function canUseVision(config?: {
+  vision_enabled?: number | null
+  vision_model?: string | null
+}): boolean {
+  return !!config && config.vision_enabled === 1 && !!config.vision_model
+}

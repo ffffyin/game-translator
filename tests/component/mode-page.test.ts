@@ -82,18 +82,25 @@ describe('ModePage 嘴臭火力档位', () => {
     expect(w.findAll('.lvl-opt')[1].classes()).not.toContain('on')
   })
 
-  it('识别引擎可在设置页切换（本地 OCR / AI 视觉）', async () => {
+  it('识别引擎可在设置页切换（本地 / AI 视觉 / 本地+AI 组合）', async () => {
     const w = mountPage()
     await nextTick()
     const cards = w.findAll('.m-card')
     const engineCard = cards.find((c) => c.text().includes('截图识别引擎'))!
     const opts = engineCard.findAll('.style-opt')
-    expect(opts.map((o) => o.find('b').text())).toEqual(['本地 OCR', 'AI 视觉'])
+    expect(opts.map((o) => o.find('b').text())).toEqual(['本地 OCR', 'AI 视觉', '本地 + AI'])
     expect(opts[0].classes()).toContain('on')
     await opts[1].trigger('click')
     await nextTick()
     expect(api.settingsSet).toHaveBeenCalledWith('ocrEngine', 'vision')
     expect(engineCard.findAll('.style-opt')[1].classes()).toContain('on')
+
+    // 组合模式：点第三项写入 hybrid 并高亮
+    await opts[2].trigger('click')
+    await nextTick()
+    expect(api.settingsSet).toHaveBeenCalledWith('ocrEngine', 'hybrid')
+    expect(engineCard.findAll('.style-opt')[2].classes()).toContain('on')
+    expect(engineCard.text()).toContain('本地优先')
   })
 
   it('提示语说明不会凭空编造', async () => {

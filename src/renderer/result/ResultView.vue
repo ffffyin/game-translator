@@ -1,14 +1,23 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import type { ResultData, RetranslateRequest } from '../../shared/result'
+import type { OcrEngine } from '../../shared/defaults'
 
 const data = ref<ResultData | null>(null)
 const pinned = ref(false)
 const busy = ref(false)
 const errorMsg = ref('')
 
-const engine = ref<'local' | 'vision'>('local')
+const engine = ref<OcrEngine>('local')
 const style = ref('auto')
+
+// 徽章文案：组合模式降级时明确告知用户实际用了 AI
+const engineLabel = computed(() => {
+  const d = data.value
+  if (!d) return ''
+  if (d.engine === 'vision') return d.degraded ? 'AI 视觉（本地失败已降级）' : 'AI 视觉'
+  return '本地 OCR'
+})
 
 onMounted(() => {
   window.api.onResultData((d) => {
@@ -72,9 +81,8 @@ function close(): void {
 
     <template v-if="data">
       <div class="meta">
-        <span class="engine-badge" :class="data.engine">
-          {{ data.engine === 'vision' ? 'AI 视觉' : '本地 OCR' }}
-        </span>
+        <span class="engine-badge" :class="data.engine">{{ engineLabel }}</span>
+        <span v-if="data.degraded" class="degraded-tip">本地未取到文字</span>
         <span class="count">{{ data.pairs.length }} 组文本</span>
       </div>
 
@@ -182,6 +190,13 @@ function close(): void {
 .count {
   font-size: 11px;
   color: var(--txt3);
+}
+.degraded-tip {
+  font-size: 10.5px;
+  color: var(--txt3);
+  border: 1px dashed var(--line);
+  border-radius: 5px;
+  padding: 1px 6px;
 }
 .pairs {
   flex: 1;

@@ -8,7 +8,9 @@ import {
   TRANSLATION_STYLES,
   TOXIC_LEVELS,
   isToxicLevel,
-  OCR_ENGINES
+  OCR_ENGINES,
+  normalizeOcrEngine,
+  canUseVision
 } from '../../src/shared/defaults'
 import { isValidHex } from '../../src/shared/colors'
 
@@ -19,7 +21,7 @@ describe('DEFAULT_SETTINGS', () => {
     expect(SETTING_KEYS).toContain('ocrEngine')
     expect(isValidHex(DEFAULT_SETTINGS.accentColor)).toBe(true)
     expect(['dark', 'light', 'system']).toContain(DEFAULT_SETTINGS.themeMode)
-    expect(['local', 'vision']).toContain(DEFAULT_SETTINGS.ocrEngine)
+    expect(['local', 'vision', 'hybrid']).toContain(DEFAULT_SETTINGS.ocrEngine)
   })
 
   it('isKnownSetting 识别已定义键', () => {
@@ -47,7 +49,23 @@ describe('界面选项常量', () => {
     expect(isToxicLevel('nuclear')).toBe(true)
     expect(isToxicLevel('ultra')).toBe(false)
   })
-  it('OCR 双通道', () => {
-    expect(OCR_ENGINES.map((l) => l.value)).toEqual(['local', 'vision'])
+  it('OCR 三通道：本地 / AI / 本地+AI 组合', () => {
+    expect(OCR_ENGINES.map((l) => l.value)).toEqual(['local', 'vision', 'hybrid'])
+    expect(OCR_ENGINES.find((o) => o.value === 'hybrid')!.note).toContain('本地优先')
+  })
+
+  it('normalizeOcrEngine 非法值回落 local', () => {
+    expect(normalizeOcrEngine('hybrid')).toBe('hybrid')
+    expect(normalizeOcrEngine('vision')).toBe('vision')
+    expect(normalizeOcrEngine('local')).toBe('local')
+    expect(normalizeOcrEngine('bogus')).toBe('local')
+    expect(normalizeOcrEngine(undefined)).toBe('local')
+  })
+
+  it('canUseVision 需同时开启视觉能力并填写视觉模型', () => {
+    expect(canUseVision({ vision_enabled: 1, vision_model: 'gpt-4o' })).toBe(true)
+    expect(canUseVision({ vision_enabled: 1, vision_model: null })).toBe(false)
+    expect(canUseVision({ vision_enabled: 0, vision_model: 'gpt-4o' })).toBe(false)
+    expect(canUseVision(undefined)).toBe(false)
   })
 })
