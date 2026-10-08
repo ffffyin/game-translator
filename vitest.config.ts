@@ -15,6 +15,11 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     globals: false,
     testTimeout: 15000,
+    // 串行跑文件：并行时部分受限环境会出现临时目录写入失败（EPERM），
+    // vitest 会把失败的文件静默跳过，导致"测试文件数忽多忽少"的假绿。
+    // 串行后每次都是完整的 55 文件 / 360 用例，约 40 秒。
+    fileParallelism: false,
+    pool: 'forks',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary'],
