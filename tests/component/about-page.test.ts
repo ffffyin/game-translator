@@ -18,7 +18,8 @@ function installApi() {
     backupCreate: vi.fn(async () => [
       { name: 'translator-manual-x.db', mtime: new Date().toISOString(), size: 20480 }
     ]),
-    backupRestore: vi.fn(async () => undefined)
+    backupRestore: vi.fn(async () => undefined),
+    resetToDefaults: vi.fn(async () => ({ ok: true, removed: ['translator.db'] }))
   }
   ;(window as unknown as { api: typeof api }).api = api
   return api
@@ -85,5 +86,20 @@ describe('AboutPage 关于页', () => {
 
     await w.findAll('button').find((b) => b.text().includes('立即备份'))!.trigger('click')
     expect(api.backupCreate).toHaveBeenCalled()
+  })
+
+  it('恢复默认设置：两步确认后清空本机数据并提示重启', async () => {
+    const api = installApi()
+    const w = await mountPage()
+    expect(api.resetToDefaults).not.toHaveBeenCalled()
+
+    await w.findAll('button').find((b) => b.text() === '恢复默认设置')!.trigger('click')
+    await w.findAll('button').find((b) => b.text() === '取消')!.trigger('click')
+    expect(api.resetToDefaults).not.toHaveBeenCalled()
+
+    await w.findAll('button').find((b) => b.text() === '恢复默认设置')!.trigger('click')
+    await w.findAll('button').find((b) => b.text() === '确认清空并重启')!.trigger('click')
+    await vi.waitFor(() => expect(api.resetToDefaults).toHaveBeenCalledTimes(1))
+    expect(w.text()).toContain('已清空本机数据')
   })
 })

@@ -2,13 +2,28 @@ appId: com.fygod.gametranslator
 productName: GameTranslator
 directories:
   buildResources: build
+# 只打包运行时必需内容：开发文件、任何形态的本机数据/密钥都不允许进入安装包
 files:
   - '!**/.vscode/*'
   - '!src/*'
   - '!tests/*'
+  - '!coverage/*'
+  - '!scripts/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!vitest.config.{js,ts,mjs,cjs}'
+  - '!tsconfig*.json'
+  - '!*.tsbuildinfo'
+  - '!eng.traineddata'
   - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  # 兜底：任何数据库/日志/开发态标记/本地配置都不进包（用户数据只存在于 %APPDATA%）
+  - '!**/*.db'
+  - '!**/*.db-wal'
+  - '!**/*.db-shm'
+  - '!**/*.log'
+  - '!**/*.sqlite*'
+  - '!**/.dev-build'
+  - '!**/settings.local.json'
 asarUnpack:
   - resources/**
 win:
@@ -21,6 +36,8 @@ nsis:
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
   allowToChangeInstallationDirectory: true
+  # 卸载保留数据目录（PRD 7.1）：重装后原有配置仍在；用户可用「关于 → 恢复默认设置」清空
+  deleteAppDataOnUninstall: false
 extraResources:
   - from: build/icon.ico
     to: icon.ico

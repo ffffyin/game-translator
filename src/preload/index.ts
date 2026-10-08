@@ -27,6 +27,7 @@ const api: ApiContract = {
   backupList: () => ipcRenderer.invoke('backup:list'),
   backupCreate: () => ipcRenderer.invoke('backup:create'),
   backupRestore: (name: string) => ipcRenderer.invoke('backup:restore', name),
+  resetToDefaults: () => ipcRenderer.invoke('app:resetToDefaults'),
   testTranslate: (text: string) => ipcRenderer.invoke('app:testTranslate', text),
 
   modelsList: () => ipcRenderer.invoke('models:list'),

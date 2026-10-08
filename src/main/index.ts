@@ -1,10 +1,11 @@
 import { app, BrowserWindow, shell, Tray, ipcMain, dialog } from 'electron'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { join } from 'path'
-import { setupDataDir } from './paths'
+import { setupDataDir, dataDirRoot } from './paths'
 import { openDb, safeOpenDb, closeDb, getDb } from './services/db'
 import { registerIpc } from './ipc'
 import { createTray } from './tray'
+import { ensureCleanInstallData, wipeDatabaseFiles } from './services/install-guard'
 import { SettingsService } from './services/settings'
 import { HotkeyManager } from './services/hotkey-manager'
 import { actionTranslateReplace, actionTranslateClipboard } from './services/actions'
@@ -94,7 +95,7 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(async () => {
-  initLogger(join(app.getPath('appData'), 'GameTranslator'))
+  initLogger(dataDirRoot())
   log('INFO', `启动 v${APP_VERSION} packaged=${app.isPackaged}`)
   try {
     electronApp.setAppUserModelId('com.fygod.gametranslator')
@@ -112,6 +113,10 @@ app.whenReady().then(async () => {
     })
 
     const root = setupDataDir()
+    // 安装态守卫：正式版若发现数据目录来自开发版，清空为空白默认设置
+    if (ensureCleanInstallData(root, app.isPackaged)) {
+      log('WARN', '检测到开发态数据目录残留，已清空为默认设置')
+    }
   const db = safeOpenDb(root)
 
   // 数据库损坏检测：提示从备份还原（PRD 7.5）

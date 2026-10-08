@@ -17,6 +17,7 @@ import { queryQuota } from '../services/quota'
 import { translateText } from '../services/translate'
 import { resolveGlossary } from '../services/term-match'
 import { listBackups, createBackup, restoreBackup } from '../services/backup'
+import { wipeDatabaseFiles } from '../services/install-guard'
 import type { NotifyPayload } from '../../shared/api-contract'
 import type { ModelConfigInput } from '../../shared/model'
 
@@ -71,6 +72,22 @@ export function registerIpc(
     restoreBackup(root, name)
     app.relaunch()
     app.exit(0)
+  })
+
+  // 恢复出厂设置：清空本机配置（模型/Key、术语库、常用语、快捷键、用量、设置），
+  // 备份目录保留，清空后自动重启，回到空白默认设置。
+  handle.handle('app:resetToDefaults', (): { ok: boolean; removed?: string[]; message?: string } => {
+    try {
+      closeDb()
+      const removed = wipeDatabaseFiles(root)
+      setTimeout(() => {
+        app.relaunch()
+        app.exit(0)
+      }, 300)
+      return { ok: true, removed }
+    } catch (err) {
+      return { ok: false, message: err instanceof Error ? err.message : '清空失败' }
+    }
   })
 
   // 主页手动测试卡：用当前方向/术语/风格组合翻译一段文字

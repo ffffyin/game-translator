@@ -11,6 +11,14 @@ const checking = ref(false)
 const updateMsg = ref('')
 const backups = ref<BackupFile[]>([])
 const restoreTarget = ref('')
+const resetConfirm = ref(false)
+const resetMsg = ref('')
+
+async function doReset(): Promise<void> {
+  const r = await window.api.resetToDefaults()
+  resetConfirm.value = false
+  resetMsg.value = r.ok ? '已清空本机数据，正在重启…' : (r.message ?? '清空失败')
+}
 
 async function refreshBackups(): Promise<void> {
   backups.value = await window.api.backupList()
@@ -88,6 +96,19 @@ onMounted(async () => {
           </div>
         </div>
         <p v-else class="txt empty">暂无备份</p>
+      </div>
+
+      <div class="m-card">
+        <div class="lab">恢复默认设置</div>
+        <p class="txt">
+          清空本机全部数据（模型配置与 API Key、术语库、常用语、快捷键、用量统计、外观设置），回到刚安装时的空白默认状态；数据目录里的备份文件会保留，可随时还原。
+        </p>
+        <template v-if="resetConfirm">
+          <button class="m-btn danger" @click="doReset">确认清空并重启</button>
+          <button class="m-btn ghost" @click="resetConfirm = false">取消</button>
+        </template>
+        <button v-else class="m-btn danger" @click="resetConfirm = true">恢复默认设置</button>
+        <p v-if="resetMsg" class="txt reset-msg">{{ resetMsg }}</p>
       </div>
 
       <div class="m-card">
@@ -241,5 +262,9 @@ h4 {
 .empty {
   margin-top: 10px;
   color: var(--txt3);
+}
+.reset-msg {
+  margin-top: 10px;
+  color: var(--teal);
 }
 </style>

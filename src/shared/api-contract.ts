@@ -54,6 +54,12 @@ export interface BackupFile {
   size: number
 }
 
+export interface ResetResult {
+  ok: boolean
+  removed?: string[]
+  message?: string
+}
+
 export interface ApiContract {  ping: () => Promise<string>
   startupRoute: string | undefined
   settingsGetAll: () => Promise<AppSettings>
@@ -63,6 +69,7 @@ export interface ApiContract {  ping: () => Promise<string>
   backupList: () => Promise<BackupFile[]>
   backupCreate: () => Promise<BackupFile[]>
   backupRestore: (name: string) => Promise<void>
+  resetToDefaults: () => Promise<ResetResult>
   testTranslate: (
     text: string
   ) => Promise<{ ok: boolean; translation?: string; error?: string }>
