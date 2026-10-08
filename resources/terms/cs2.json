@@ -1,79 +1,572 @@
 {
   "game": "cs2",
   "name": "CS2",
-  "version": "2026.10.08",
+  "version": "2026.10.09",
   "terms": [
-    { "source": "rush B", "target": "快打B点", "tag": "战术" },
-    { "source": "rush A", "target": "快打A点", "tag": "战术" },
-    { "source": "eco", "target": "经济局", "tag": "经济" },
-    { "source": "save", "target": "保枪", "tag": "经济" },
-    { "source": "force", "target": "强起", "tag": "经济" },
-    { "source": "full buy", "target": "全枪全弹", "tag": "经济" },
-    { "source": "buy", "target": "起枪", "tag": "经济" },
-    { "source": "drop", "target": "给队友发枪", "tag": "经济" },
-    { "source": "awp", "target": "大狙", "tag": "武器" },
-    { "source": "ak", "target": "AK-47", "tag": "武器" },
-    { "source": "m4", "target": "M4", "tag": "武器" },
-    { "source": "deagle", "target": "沙漠之鹰", "tag": "武器" },
-    { "source": "glock", "target": "格洛克", "tag": "武器" },
-    { "source": "usp", "target": "USP", "tag": "武器" },
-    { "source": "kevlar", "target": "防弹衣", "tag": "装备" },
-    { "source": "helmet", "target": "头盔", "tag": "装备" },
-    { "source": "kit", "target": "拆弹钳", "tag": "装备" },
-    { "source": "defuse", "target": "拆弹", "tag": "目标" },
-    { "source": "plant", "target": "安放炸弹", "tag": "目标" },
-    { "source": "bomb", "target": "C4炸弹", "tag": "目标" },
-    { "source": "B site", "target": "B包点", "tag": "地图" },
-    { "source": "A site", "target": "A包点", "tag": "地图" },
-    { "source": "mid", "target": "中路", "tag": "地图" },
-    { "source": "long", "target": "长廊", "tag": "地图" },
-    { "source": "short", "target": "短道", "tag": "地图" },
-    { "source": "cat", "target": "天桥", "tag": "地图" },
-    { "source": "ct", "target": "警家", "tag": "地图" },
-    { "source": "t", "target": "匪", "tag": "阵营" },
-    { "source": "spawn", "target": "出生点", "tag": "地图" },
-    { "source": "flash", "target": "闪光弹", "tag": "投掷物" },
-    { "source": "smoke", "target": "烟雾弹", "tag": "投掷物" },
-    { "source": "he", "target": "高爆手雷", "tag": "投掷物" },
-    { "source": "molly", "target": "燃烧弹", "tag": "投掷物" },
-    { "source": "inc", "target": "燃烧弹", "tag": "投掷物" },
-    { "source": "nade", "target": "手雷", "tag": "投掷物" },
-    { "source": "push", "target": "前压", "tag": "战术" },
-    { "source": "peek", "target": "拉出去对枪", "tag": "对枪" },
-    { "source": "dry peek", "target": "干拉", "tag": "对枪" },
-    { "source": "swing", "target": "大拉", "tag": "对枪" },
-    { "source": "jiggle", "target": "小身位试探", "tag": "对枪" },
-    { "source": "prefire", "target": "提前枪", "tag": "对枪" },
-    { "source": "angle", "target": "架枪角度", "tag": "对枪" },
-    { "source": "hold", "target": "架点", "tag": "战术" },
-    { "source": "trade", "target": "补枪", "tag": "战术" },
-    { "source": "entry", "target": "突破手", "tag": "位置" },
-    { "source": "lurk", "target": "断后", "tag": "战术" },
-    { "source": "igl", "target": "指挥", "tag": "位置" },
-    { "source": "execute", "target": "爆弹战术", "tag": "战术" },
-    { "source": "fake", "target": "假打", "tag": "战术" },
-    { "source": "split", "target": "夹攻", "tag": "战术" },
-    { "source": "rotate", "target": "回防", "tag": "战术" },
-    { "source": "retake", "target": "夺回包点", "tag": "战术" },
-    { "source": "boost", "target": "双架", "tag": "战术" },
-    { "source": "bhop", "target": "连跳", "tag": "身法" },
-    { "source": "strafe", "target": "空中加速", "tag": "身法" },
-    { "source": "headshot", "target": "爆头", "tag": "对枪" },
-    { "source": "one tap", "target": "一发点头", "tag": "对枪" },
-    { "source": "spray", "target": "扫射压枪", "tag": "对枪" },
-    { "source": "recoil", "target": "后坐力", "tag": "对枪" },
-    { "source": "no scope", "target": "盲狙", "tag": "对枪" },
-    { "source": "flick", "target": "甩枪", "tag": "对枪" },
-    { "source": "clutch", "target": "残局", "tag": "对枪" },
-    { "source": "ace", "target": "五杀", "tag": "播报" },
-    { "source": "ninja defuse", "target": "偷拆炸弹", "tag": "战术" },
-    { "source": "wh", "target": "透视外挂", "tag": "外挂" },
-    { "source": "cheater", "target": "作弊的", "tag": "外挂" },
-    { "source": "kick", "target": "投票踢人", "tag": "社交" },
-    { "source": "team kill", "target": "击杀队友", "tag": "社交" },
-    { "source": "lag", "target": "网络卡顿", "tag": "网络" },
-    { "source": "ping", "target": "延迟", "tag": "网络" },
-    { "source": "surrender", "target": "投降", "tag": "社交" },
-    { "source": "timeout", "target": "战术暂停", "tag": "社交" }
+    {
+      "source": "rush B",
+      "target": "快打B点",
+      "tag": "战术"
+    },
+    {
+      "source": "rush A",
+      "target": "快打A点",
+      "tag": "战术"
+    },
+    {
+      "source": "eco",
+      "target": "经济局",
+      "tag": "经济"
+    },
+    {
+      "source": "save",
+      "target": "保枪",
+      "tag": "经济"
+    },
+    {
+      "source": "force",
+      "target": "强起",
+      "tag": "经济"
+    },
+    {
+      "source": "full buy",
+      "target": "全枪全弹",
+      "tag": "经济"
+    },
+    {
+      "source": "buy",
+      "target": "起枪",
+      "tag": "经济"
+    },
+    {
+      "source": "drop",
+      "target": "给队友发枪",
+      "tag": "经济"
+    },
+    {
+      "source": "awp",
+      "target": "大狙",
+      "tag": "武器"
+    },
+    {
+      "source": "ak",
+      "target": "AK-47",
+      "tag": "武器"
+    },
+    {
+      "source": "m4",
+      "target": "M4",
+      "tag": "武器"
+    },
+    {
+      "source": "deagle",
+      "target": "沙漠之鹰",
+      "tag": "武器"
+    },
+    {
+      "source": "glock",
+      "target": "格洛克",
+      "tag": "武器"
+    },
+    {
+      "source": "usp",
+      "target": "USP",
+      "tag": "武器"
+    },
+    {
+      "source": "kevlar",
+      "target": "防弹衣",
+      "tag": "装备"
+    },
+    {
+      "source": "helmet",
+      "target": "头盔",
+      "tag": "装备"
+    },
+    {
+      "source": "kit",
+      "target": "拆弹钳",
+      "tag": "装备"
+    },
+    {
+      "source": "defuse",
+      "target": "拆弹",
+      "tag": "目标"
+    },
+    {
+      "source": "plant",
+      "target": "安放炸弹",
+      "tag": "目标"
+    },
+    {
+      "source": "bomb",
+      "target": "C4炸弹",
+      "tag": "目标"
+    },
+    {
+      "source": "B site",
+      "target": "B包点",
+      "tag": "地图"
+    },
+    {
+      "source": "A site",
+      "target": "A包点",
+      "tag": "地图"
+    },
+    {
+      "source": "mid",
+      "target": "中路",
+      "tag": "地图"
+    },
+    {
+      "source": "long",
+      "target": "长廊",
+      "tag": "地图"
+    },
+    {
+      "source": "short",
+      "target": "短道",
+      "tag": "地图"
+    },
+    {
+      "source": "cat",
+      "target": "天桥",
+      "tag": "地图"
+    },
+    {
+      "source": "ct",
+      "target": "警家",
+      "tag": "地图"
+    },
+    {
+      "source": "t",
+      "target": "匪",
+      "tag": "阵营"
+    },
+    {
+      "source": "spawn",
+      "target": "出生点",
+      "tag": "地图"
+    },
+    {
+      "source": "flash",
+      "target": "闪光弹",
+      "tag": "投掷物"
+    },
+    {
+      "source": "smoke",
+      "target": "烟雾弹",
+      "tag": "投掷物"
+    },
+    {
+      "source": "he",
+      "target": "高爆手雷",
+      "tag": "投掷物"
+    },
+    {
+      "source": "molly",
+      "target": "燃烧弹",
+      "tag": "投掷物"
+    },
+    {
+      "source": "inc",
+      "target": "燃烧弹",
+      "tag": "投掷物"
+    },
+    {
+      "source": "nade",
+      "target": "手雷",
+      "tag": "投掷物"
+    },
+    {
+      "source": "push",
+      "target": "前压",
+      "tag": "战术"
+    },
+    {
+      "source": "peek",
+      "target": "拉出去对枪",
+      "tag": "对枪"
+    },
+    {
+      "source": "dry peek",
+      "target": "干拉",
+      "tag": "对枪"
+    },
+    {
+      "source": "swing",
+      "target": "大拉",
+      "tag": "对枪"
+    },
+    {
+      "source": "jiggle",
+      "target": "小身位试探",
+      "tag": "对枪"
+    },
+    {
+      "source": "prefire",
+      "target": "提前枪",
+      "tag": "对枪"
+    },
+    {
+      "source": "angle",
+      "target": "架枪角度",
+      "tag": "对枪"
+    },
+    {
+      "source": "hold",
+      "target": "架点",
+      "tag": "战术"
+    },
+    {
+      "source": "trade",
+      "target": "补枪",
+      "tag": "战术"
+    },
+    {
+      "source": "entry",
+      "target": "突破手",
+      "tag": "位置"
+    },
+    {
+      "source": "lurk",
+      "target": "断后",
+      "tag": "战术"
+    },
+    {
+      "source": "igl",
+      "target": "指挥",
+      "tag": "位置"
+    },
+    {
+      "source": "execute",
+      "target": "爆弹战术",
+      "tag": "战术"
+    },
+    {
+      "source": "fake",
+      "target": "假打",
+      "tag": "战术"
+    },
+    {
+      "source": "split",
+      "target": "夹攻",
+      "tag": "战术"
+    },
+    {
+      "source": "rotate",
+      "target": "回防",
+      "tag": "战术"
+    },
+    {
+      "source": "retake",
+      "target": "夺回包点",
+      "tag": "战术"
+    },
+    {
+      "source": "boost",
+      "target": "双架",
+      "tag": "战术"
+    },
+    {
+      "source": "bhop",
+      "target": "连跳",
+      "tag": "身法"
+    },
+    {
+      "source": "strafe",
+      "target": "空中加速",
+      "tag": "身法"
+    },
+    {
+      "source": "headshot",
+      "target": "爆头",
+      "tag": "对枪"
+    },
+    {
+      "source": "one tap",
+      "target": "一发点头",
+      "tag": "对枪"
+    },
+    {
+      "source": "spray",
+      "target": "扫射压枪",
+      "tag": "对枪"
+    },
+    {
+      "source": "recoil",
+      "target": "后坐力",
+      "tag": "对枪"
+    },
+    {
+      "source": "no scope",
+      "target": "盲狙",
+      "tag": "对枪"
+    },
+    {
+      "source": "flick",
+      "target": "甩枪",
+      "tag": "对枪"
+    },
+    {
+      "source": "clutch",
+      "target": "残局",
+      "tag": "对枪"
+    },
+    {
+      "source": "ace",
+      "target": "五杀",
+      "tag": "播报"
+    },
+    {
+      "source": "ninja defuse",
+      "target": "偷拆炸弹",
+      "tag": "战术"
+    },
+    {
+      "source": "wh",
+      "target": "透视外挂",
+      "tag": "外挂"
+    },
+    {
+      "source": "cheater",
+      "target": "作弊的",
+      "tag": "外挂"
+    },
+    {
+      "source": "kick",
+      "target": "投票踢人",
+      "tag": "社交"
+    },
+    {
+      "source": "team kill",
+      "target": "击杀队友",
+      "tag": "社交"
+    },
+    {
+      "source": "lag",
+      "target": "网络卡顿",
+      "tag": "网络"
+    },
+    {
+      "source": "ping",
+      "target": "延迟",
+      "tag": "网络"
+    },
+    {
+      "source": "surrender",
+      "target": "投降",
+      "tag": "社交"
+    },
+    {
+      "source": "timeout",
+      "target": "战术暂停",
+      "tag": "社交"
+    },
+    {
+      "source": "m4a4",
+      "target": "M4A4",
+      "tag": "武器"
+    },
+    {
+      "source": "m4a1",
+      "target": "M4A1-S（消音 M4）",
+      "tag": "武器"
+    },
+    {
+      "source": "m4a1-s",
+      "target": "M4A1-S（消音 M4）",
+      "tag": "武器"
+    },
+    {
+      "source": "aug",
+      "target": "AUG",
+      "tag": "武器"
+    },
+    {
+      "source": "sg553",
+      "target": "SG553",
+      "tag": "武器"
+    },
+    {
+      "source": "famas",
+      "target": "FAMAS",
+      "tag": "武器"
+    },
+    {
+      "source": "galil",
+      "target": "加利尔（Galil）",
+      "tag": "武器"
+    },
+    {
+      "source": "mp9",
+      "target": "MP9",
+      "tag": "武器"
+    },
+    {
+      "source": "mac10",
+      "target": "MAC-10",
+      "tag": "武器"
+    },
+    {
+      "source": "mac-10",
+      "target": "MAC-10",
+      "tag": "武器"
+    },
+    {
+      "source": "ump45",
+      "target": "UMP-45",
+      "tag": "武器"
+    },
+    {
+      "source": "mp5",
+      "target": "MP5-SD",
+      "tag": "武器"
+    },
+    {
+      "source": "p90",
+      "target": "P90",
+      "tag": "武器"
+    },
+    {
+      "source": "bizon",
+      "target": "PP-野牛",
+      "tag": "武器"
+    },
+    {
+      "source": "nova",
+      "target": "新星（Nova）",
+      "tag": "武器"
+    },
+    {
+      "source": "xm1014",
+      "target": "XM1014",
+      "tag": "武器"
+    },
+    {
+      "source": "mag-7",
+      "target": "MAG-7",
+      "tag": "武器"
+    },
+    {
+      "source": "sawed-off",
+      "target": "截短霰弹枪（短喷）",
+      "tag": "武器"
+    },
+    {
+      "source": "ssg08",
+      "target": "SSG08（鸟狙）",
+      "tag": "武器"
+    },
+    {
+      "source": "scout",
+      "target": "SSG08（鸟狙）",
+      "tag": "武器"
+    },
+    {
+      "source": "scar-20",
+      "target": "SCAR-20（连狙）",
+      "tag": "武器"
+    },
+    {
+      "source": "g3sg1",
+      "target": "G3SG1（连狙）",
+      "tag": "武器"
+    },
+    {
+      "source": "cz75",
+      "target": "CZ75-自动",
+      "tag": "武器"
+    },
+    {
+      "source": "tec-9",
+      "target": "Tec-9",
+      "tag": "武器"
+    },
+    {
+      "source": "five-seven",
+      "target": "FN57",
+      "tag": "武器"
+    },
+    {
+      "source": "p250",
+      "target": "P250",
+      "tag": "武器"
+    },
+    {
+      "source": "dual berettas",
+      "target": "双持贝瑞塔",
+      "tag": "武器"
+    },
+    {
+      "source": "revolver",
+      "target": "R8 左轮",
+      "tag": "武器"
+    },
+    {
+      "source": "zeus",
+      "target": "电击枪（Zeus）",
+      "tag": "武器"
+    },
+    {
+      "source": "negev",
+      "target": "内格夫（机枪）",
+      "tag": "武器"
+    },
+    {
+      "source": "m249",
+      "target": "M249（机枪）",
+      "tag": "武器"
+    },
+    {
+      "source": "mirage",
+      "target": "荒漠迷城",
+      "tag": "地图"
+    },
+    {
+      "source": "dust2",
+      "target": "炙热沙城 II",
+      "tag": "地图"
+    },
+    {
+      "source": "dust ii",
+      "target": "炙热沙城 II",
+      "tag": "地图"
+    },
+    {
+      "source": "inferno",
+      "target": "炼狱小镇",
+      "tag": "地图"
+    },
+    {
+      "source": "nuke",
+      "target": "核子危机",
+      "tag": "地图"
+    },
+    {
+      "source": "overpass",
+      "target": "死城之谜",
+      "tag": "地图"
+    },
+    {
+      "source": "vertigo",
+      "target": "殒命大厦",
+      "tag": "地图"
+    },
+    {
+      "source": "ancient",
+      "target": "远古遗迹",
+      "tag": "地图"
+    },
+    {
+      "source": "anubis",
+      "target": "阿努比斯",
+      "tag": "地图"
+    },
+    {
+      "source": "train",
+      "target": "列车停放站",
+      "tag": "地图"
+    }
   ]
 }

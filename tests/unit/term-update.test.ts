@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { mkdtempSync, mkdirSync, writeFileSync } from 'fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'fs'
 import { Db } from '../../src/main/services/db-wrapper'
 import { applyMigrations } from '../../src/main/db/schema'
 import { seedBuiltinTerms, TermLibraryService } from '../../src/main/services/term-library'
@@ -15,6 +15,10 @@ import {
 import type { BuiltinTermFile } from '../../src/main/services/term-library'
 
 const RESOURCES = join(__dirname, '..', '..', 'resources')
+// 内置 dota2 词库版本：随 resources/terms/dota2.json 变动
+const DOTA_VERSION = JSON.parse(
+  readFileSync(join(RESOURCES, 'terms', 'dota2.json'), 'utf8')
+).version as string
 const MANIFEST_URL = 'https://example.com/manifest.json'
 
 function dbWithSeeds(): Db {
@@ -77,7 +81,7 @@ describe('checkForUpdates', () => {
     expect(updates[0].newVersion).toBe('2026.12.01')
 
     // 同版本：无更新
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => manifest('2026.10.08') })))
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => manifest(DOTA_VERSION) })))
     expect(await checkForUpdates(db, MANIFEST_URL)).toEqual([])
 
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ x: 1 }) })))
@@ -147,7 +151,7 @@ describe('applyUpdates 端到端', () => {
     vi.stubGlobal('fetch', fetchMock)
     await expect(applyUpdates(db, MANIFEST_URL)).rejects.toThrow(/network down/)
     const dota = svc.getLibByGame('dota2')!
-    expect(dota.version).toBe('2026.10.08')
+    expect(dota.version).toBe(DOTA_VERSION)
   })
 })
 

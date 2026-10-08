@@ -1,78 +1,2077 @@
 {
   "game": "dota2",
   "name": "Dota 2",
-  "version": "2026.10.08",
+  "version": "2026.10.09",
   "terms": [
-    { "source": "gank", "target": "抓人", "tag": "战术" },
-    { "source": "miss", "target": "消失", "tag": "报点" },
-    { "source": "mia", "target": "消失", "tag": "报点" },
-    { "source": "ss", "target": "消失", "tag": "报点" },
-    { "source": "re", "target": "回来了", "tag": "报点" },
-    { "source": "b", "target": "撤退", "tag": "战术" },
-    { "source": "back", "target": "撤退", "tag": "战术" },
-    { "source": "retreat", "target": "撤退", "tag": "战术" },
-    { "source": "push", "target": "推进", "tag": "战术" },
-    { "source": "dive", "target": "越塔", "tag": "战术" },
-    { "source": "farm", "target": "打钱", "tag": "发育" },
-    { "source": "last hit", "target": "正补", "tag": "发育" },
-    { "source": "deny", "target": "反补", "tag": "发育" },
-    { "source": "cs", "target": "补刀数", "tag": "发育" },
-    { "source": "BKB", "target": "黑皇杖", "tag": "装备" },
-    { "source": "blink", "target": "跳刀", "tag": "装备" },
-    { "source": "blink dagger", "target": "跳刀", "tag": "装备" },
-    { "source": "force staff", "target": "原力法杖", "tag": "装备" },
-    { "source": "aghs", "target": "阿哈利姆神杖", "tag": "装备" },
-    { "source": "aghanim", "target": "阿哈利姆神杖", "tag": "装备" },
-    { "source": "rosh", "target": "肉山", "tag": "目标" },
-    { "source": "roshan", "target": "肉山", "tag": "目标" },
-    { "source": "aegis", "target": "不朽盾", "tag": "目标" },
-    { "source": "cheese", "target": "奶酪", "tag": "目标" },
-    { "source": "rapier", "target": "圣剑", "tag": "装备" },
-    { "source": "divine", "target": "圣剑", "tag": "装备" },
-    { "source": "bd", "target": "偷塔", "tag": "战术" },
-    { "source": "backdoor", "target": "偷塔", "tag": "战术" },
-    { "source": "courier", "target": "信使", "tag": "辅助" },
-    { "source": "wards", "target": "眼", "tag": "辅助" },
-    { "source": "ward", "target": "插眼", "tag": "辅助" },
-    { "source": "sentry", "target": "岗哨守卫", "tag": "辅助" },
-    { "source": "observer", "target": "侦查守卫", "tag": "辅助" },
-    { "source": "dust", "target": "显隐之尘", "tag": "辅助" },
-    { "source": "smoke", "target": "诡计之雾", "tag": "辅助" },
-    { "source": "tp", "target": "回城卷轴", "tag": "装备" },
-    { "source": "mid", "target": "中路", "tag": "地图" },
-    { "source": "top", "target": "上路", "tag": "地图" },
-    { "source": "bot", "target": "下路", "tag": "地图" },
-    { "source": "offlane", "target": "劣势路", "tag": "地图" },
-    { "source": "safe lane", "target": "优势路", "tag": "地图" },
-    { "source": "jungle", "target": "野区", "tag": "地图" },
-    { "source": "rosh pit", "target": "肉山坑", "tag": "地图" },
-    { "source": "rune", "target": "神符", "tag": "地图" },
-    { "source": "bounty", "target": "赏金符", "tag": "地图" },
-    { "source": "neutrals", "target": "中立装备", "tag": "装备" },
-    { "source": "support", "target": "辅助", "tag": "位置" },
-    { "source": "carry", "target": "核心", "tag": "位置" },
-    { "source": "pos1", "target": "一号位", "tag": "位置" },
-    { "source": "pos5", "target": "五号位", "tag": "位置" },
-    { "source": "ult", "target": "大招", "tag": "技能" },
-    { "source": "stun", "target": "眩晕", "tag": "技能" },
-    { "source": "slow", "target": "减速", "tag": "技能" },
-    { "source": "silence", "target": "沉默", "tag": "技能" },
-    { "source": "hex", "target": "变羊", "tag": "技能" },
-    { "source": "feed", "target": "送人头", "tag": "社交" },
-    { "source": "feeder", "target": "送头怪", "tag": "社交" },
-    { "source": "noob", "target": "菜鸟", "tag": "社交" },
-    { "source": "gg", "target": "打得好", "tag": "社交" },
-    { "source": "gl", "target": "祝好运", "tag": "社交" },
-    { "source": "hf", "target": "玩得开心", "tag": "社交" },
-    { "source": "buyback", "target": "买活", "tag": "机制" },
-    { "source": "glyph", "target": "塔防", "tag": "机制" },
-    { "source": "rax", "target": "兵营", "tag": "目标" },
-    { "source": "ancient", "target": "遗迹", "tag": "目标" },
-    { "source": "mega", "target": "超级兵", "tag": "机制" },
-    { "source": "illusion", "target": "幻象", "tag": "技能" },
-    { "source": "invis", "target": "隐身", "tag": "技能" },
-    { "source": "purge", "target": "驱散", "tag": "技能" },
-    { "source": "disarm", "target": "缴械", "tag": "技能" },
-    { "source": "break", "target": "破坏", "tag": "技能" }
+    {
+      "source": "gank",
+      "target": "抓人",
+      "tag": "战术"
+    },
+    {
+      "source": "miss",
+      "target": "消失",
+      "tag": "报点"
+    },
+    {
+      "source": "mia",
+      "target": "消失",
+      "tag": "报点"
+    },
+    {
+      "source": "ss",
+      "target": "消失",
+      "tag": "报点"
+    },
+    {
+      "source": "re",
+      "target": "回来了",
+      "tag": "报点"
+    },
+    {
+      "source": "b",
+      "target": "撤退",
+      "tag": "战术"
+    },
+    {
+      "source": "back",
+      "target": "撤退",
+      "tag": "战术"
+    },
+    {
+      "source": "retreat",
+      "target": "撤退",
+      "tag": "战术"
+    },
+    {
+      "source": "push",
+      "target": "推进",
+      "tag": "战术"
+    },
+    {
+      "source": "dive",
+      "target": "越塔",
+      "tag": "战术"
+    },
+    {
+      "source": "farm",
+      "target": "打钱",
+      "tag": "发育"
+    },
+    {
+      "source": "last hit",
+      "target": "正补",
+      "tag": "发育"
+    },
+    {
+      "source": "deny",
+      "target": "反补",
+      "tag": "发育"
+    },
+    {
+      "source": "cs",
+      "target": "补刀数",
+      "tag": "发育"
+    },
+    {
+      "source": "BKB",
+      "target": "黑皇杖",
+      "tag": "装备"
+    },
+    {
+      "source": "blink",
+      "target": "跳刀",
+      "tag": "装备"
+    },
+    {
+      "source": "blink dagger",
+      "target": "跳刀",
+      "tag": "装备"
+    },
+    {
+      "source": "force staff",
+      "target": "原力法杖",
+      "tag": "装备"
+    },
+    {
+      "source": "aghs",
+      "target": "阿哈利姆神杖",
+      "tag": "装备"
+    },
+    {
+      "source": "aghanim",
+      "target": "阿哈利姆神杖",
+      "tag": "装备"
+    },
+    {
+      "source": "rosh",
+      "target": "肉山",
+      "tag": "目标"
+    },
+    {
+      "source": "roshan",
+      "target": "肉山",
+      "tag": "目标"
+    },
+    {
+      "source": "aegis",
+      "target": "不朽盾",
+      "tag": "目标"
+    },
+    {
+      "source": "cheese",
+      "target": "奶酪",
+      "tag": "目标"
+    },
+    {
+      "source": "rapier",
+      "target": "圣剑",
+      "tag": "装备"
+    },
+    {
+      "source": "divine",
+      "target": "圣剑",
+      "tag": "装备"
+    },
+    {
+      "source": "bd",
+      "target": "偷塔",
+      "tag": "战术"
+    },
+    {
+      "source": "backdoor",
+      "target": "偷塔",
+      "tag": "战术"
+    },
+    {
+      "source": "courier",
+      "target": "信使",
+      "tag": "辅助"
+    },
+    {
+      "source": "wards",
+      "target": "眼",
+      "tag": "辅助"
+    },
+    {
+      "source": "ward",
+      "target": "插眼",
+      "tag": "辅助"
+    },
+    {
+      "source": "sentry",
+      "target": "岗哨守卫",
+      "tag": "辅助"
+    },
+    {
+      "source": "observer",
+      "target": "侦查守卫",
+      "tag": "辅助"
+    },
+    {
+      "source": "dust",
+      "target": "显隐之尘",
+      "tag": "辅助"
+    },
+    {
+      "source": "smoke",
+      "target": "诡计之雾",
+      "tag": "辅助"
+    },
+    {
+      "source": "tp",
+      "target": "回城卷轴",
+      "tag": "装备"
+    },
+    {
+      "source": "mid",
+      "target": "中路",
+      "tag": "地图"
+    },
+    {
+      "source": "top",
+      "target": "上路",
+      "tag": "地图"
+    },
+    {
+      "source": "bot",
+      "target": "下路",
+      "tag": "地图"
+    },
+    {
+      "source": "offlane",
+      "target": "劣势路",
+      "tag": "地图"
+    },
+    {
+      "source": "safe lane",
+      "target": "优势路",
+      "tag": "地图"
+    },
+    {
+      "source": "jungle",
+      "target": "野区",
+      "tag": "地图"
+    },
+    {
+      "source": "rosh pit",
+      "target": "肉山坑",
+      "tag": "地图"
+    },
+    {
+      "source": "rune",
+      "target": "神符",
+      "tag": "地图"
+    },
+    {
+      "source": "bounty",
+      "target": "赏金符",
+      "tag": "地图"
+    },
+    {
+      "source": "neutrals",
+      "target": "中立装备",
+      "tag": "装备"
+    },
+    {
+      "source": "support",
+      "target": "辅助",
+      "tag": "位置"
+    },
+    {
+      "source": "carry",
+      "target": "核心",
+      "tag": "位置"
+    },
+    {
+      "source": "pos1",
+      "target": "一号位",
+      "tag": "位置"
+    },
+    {
+      "source": "pos5",
+      "target": "五号位",
+      "tag": "位置"
+    },
+    {
+      "source": "ult",
+      "target": "大招",
+      "tag": "技能"
+    },
+    {
+      "source": "stun",
+      "target": "眩晕",
+      "tag": "技能"
+    },
+    {
+      "source": "slow",
+      "target": "减速",
+      "tag": "技能"
+    },
+    {
+      "source": "silence",
+      "target": "沉默",
+      "tag": "技能"
+    },
+    {
+      "source": "hex",
+      "target": "变羊",
+      "tag": "技能"
+    },
+    {
+      "source": "feed",
+      "target": "送人头",
+      "tag": "社交"
+    },
+    {
+      "source": "feeder",
+      "target": "送头怪",
+      "tag": "社交"
+    },
+    {
+      "source": "noob",
+      "target": "菜鸟",
+      "tag": "社交"
+    },
+    {
+      "source": "gg",
+      "target": "打得好",
+      "tag": "社交"
+    },
+    {
+      "source": "gl",
+      "target": "祝好运",
+      "tag": "社交"
+    },
+    {
+      "source": "hf",
+      "target": "玩得开心",
+      "tag": "社交"
+    },
+    {
+      "source": "buyback",
+      "target": "买活",
+      "tag": "机制"
+    },
+    {
+      "source": "glyph",
+      "target": "塔防",
+      "tag": "机制"
+    },
+    {
+      "source": "rax",
+      "target": "兵营",
+      "tag": "目标"
+    },
+    {
+      "source": "ancient",
+      "target": "遗迹",
+      "tag": "目标"
+    },
+    {
+      "source": "mega",
+      "target": "超级兵",
+      "tag": "机制"
+    },
+    {
+      "source": "illusion",
+      "target": "幻象",
+      "tag": "技能"
+    },
+    {
+      "source": "invis",
+      "target": "隐身",
+      "tag": "技能"
+    },
+    {
+      "source": "purge",
+      "target": "驱散",
+      "tag": "技能"
+    },
+    {
+      "source": "disarm",
+      "target": "缴械",
+      "tag": "技能"
+    },
+    {
+      "source": "break",
+      "target": "破坏",
+      "tag": "技能"
+    },
+    {
+      "source": "tango",
+      "target": "树之祭祀（吃树）",
+      "tag": "装备"
+    },
+    {
+      "source": "clarity",
+      "target": "净化药水",
+      "tag": "装备"
+    },
+    {
+      "source": "salve",
+      "target": "治疗药膏",
+      "tag": "装备"
+    },
+    {
+      "source": "healing salve",
+      "target": "治疗药膏",
+      "tag": "装备"
+    },
+    {
+      "source": "mango",
+      "target": "魔法芒果",
+      "tag": "装备"
+    },
+    {
+      "source": "enchanted mango",
+      "target": "魔法芒果",
+      "tag": "装备"
+    },
+    {
+      "source": "faerie fire",
+      "target": "仙灵之火",
+      "tag": "装备"
+    },
+    {
+      "source": "bottle",
+      "target": "魔瓶",
+      "tag": "装备"
+    },
+    {
+      "source": "tome of knowledge",
+      "target": "知识之书",
+      "tag": "装备"
+    },
+    {
+      "source": "town portal scroll",
+      "target": "回城卷轴",
+      "tag": "装备"
+    },
+    {
+      "source": "observer ward",
+      "target": "侦查守卫（假眼）",
+      "tag": "装备"
+    },
+    {
+      "source": "sentry ward",
+      "target": "岗哨守卫（真眼）",
+      "tag": "装备"
+    },
+    {
+      "source": "dust of appearance",
+      "target": "显影之尘（粉）",
+      "tag": "装备"
+    },
+    {
+      "source": "smoke of deceit",
+      "target": "诡计之雾（雾）",
+      "tag": "装备"
+    },
+    {
+      "source": "gem",
+      "target": "真视宝石",
+      "tag": "装备"
+    },
+    {
+      "source": "gem of true sight",
+      "target": "真视宝石",
+      "tag": "装备"
+    },
+    {
+      "source": "blood grenade",
+      "target": "血榴弹",
+      "tag": "装备"
+    },
+    {
+      "source": "iron branch",
+      "target": "铁树枝干",
+      "tag": "装备"
+    },
+    {
+      "source": "gauntlets of strength",
+      "target": "力量手套",
+      "tag": "装备"
+    },
+    {
+      "source": "slippers of agility",
+      "target": "敏捷便鞋",
+      "tag": "装备"
+    },
+    {
+      "source": "mantle of intelligence",
+      "target": "智力斗篷",
+      "tag": "装备"
+    },
+    {
+      "source": "circlet",
+      "target": "圆环",
+      "tag": "装备"
+    },
+    {
+      "source": "belt of strength",
+      "target": "力量腰带",
+      "tag": "装备"
+    },
+    {
+      "source": "band of elvenskin",
+      "target": "精灵皮靴",
+      "tag": "装备"
+    },
+    {
+      "source": "robe of the magi",
+      "target": "巫师长袍",
+      "tag": "装备"
+    },
+    {
+      "source": "crown",
+      "target": "王冠",
+      "tag": "装备"
+    },
+    {
+      "source": "ogre axe",
+      "target": "食人魔之斧",
+      "tag": "装备"
+    },
+    {
+      "source": "blade of alacrity",
+      "target": "欢欣之刃",
+      "tag": "装备"
+    },
+    {
+      "source": "staff of wizardry",
+      "target": "魔力法杖",
+      "tag": "装备"
+    },
+    {
+      "source": "ultimate orb",
+      "target": "极限法球",
+      "tag": "装备"
+    },
+    {
+      "source": "void stone",
+      "target": "虚无宝石",
+      "tag": "装备"
+    },
+    {
+      "source": "perseverance",
+      "target": "坚韧球",
+      "tag": "装备"
+    },
+    {
+      "source": "ring of health",
+      "target": "治疗指环",
+      "tag": "装备"
+    },
+    {
+      "source": "ring of regen",
+      "target": "回复戒指",
+      "tag": "装备"
+    },
+    {
+      "source": "ring of basilius",
+      "target": "圣殿指环",
+      "tag": "装备"
+    },
+    {
+      "source": "ring of aquila",
+      "target": "天鹰之戒",
+      "tag": "装备"
+    },
+    {
+      "source": "wraith band",
+      "target": "幽魂系带",
+      "tag": "装备"
+    },
+    {
+      "source": "null talisman",
+      "target": "无用护符",
+      "tag": "装备"
+    },
+    {
+      "source": "bracer",
+      "target": "护腕",
+      "tag": "装备"
+    },
+    {
+      "source": "magic wand",
+      "target": "魔杖",
+      "tag": "装备"
+    },
+    {
+      "source": "wind lace",
+      "target": "疾风鞋带",
+      "tag": "装备"
+    },
+    {
+      "source": "boots of speed",
+      "target": "速度之靴",
+      "tag": "装备"
+    },
+    {
+      "source": "tranquil boots",
+      "target": "静谧之靴",
+      "tag": "装备"
+    },
+    {
+      "source": "arcane boots",
+      "target": "秘法鞋",
+      "tag": "装备"
+    },
+    {
+      "source": "power treads",
+      "target": "动力鞋（假腿）",
+      "tag": "装备"
+    },
+    {
+      "source": "phase boots",
+      "target": "相位鞋",
+      "tag": "装备"
+    },
+    {
+      "source": "boots of travel",
+      "target": "远行鞋（飞鞋）",
+      "tag": "装备"
+    },
+    {
+      "source": "guardian greaves",
+      "target": "卫士胫甲（大梅肯）",
+      "tag": "装备"
+    },
+    {
+      "source": "boots of bearing",
+      "target": "承载之靴",
+      "tag": "装备"
+    },
+    {
+      "source": "soul ring",
+      "target": "灵魂之戒",
+      "tag": "装备"
+    },
+    {
+      "source": "urn of shadows",
+      "target": "影之灵龛（骨灰盒）",
+      "tag": "装备"
+    },
+    {
+      "source": "spirit vessel",
+      "target": "灵魂容器",
+      "tag": "装备"
+    },
+    {
+      "source": "vanguard",
+      "target": "先锋盾",
+      "tag": "装备"
+    },
+    {
+      "source": "buckler",
+      "target": "圆盾",
+      "tag": "装备"
+    },
+    {
+      "source": "ring of protection",
+      "target": "守护指环",
+      "tag": "装备"
+    },
+    {
+      "source": "helm of iron will",
+      "target": "铁意头盔",
+      "tag": "装备"
+    },
+    {
+      "source": "claymore",
+      "target": "阔剑",
+      "tag": "装备"
+    },
+    {
+      "source": "broadsword",
+      "target": "大剑",
+      "tag": "装备"
+    },
+    {
+      "source": "javelin",
+      "target": "标枪",
+      "tag": "装备"
+    },
+    {
+      "source": "mithril hammer",
+      "target": "秘银锤",
+      "tag": "装备"
+    },
+    {
+      "source": "hyperstone",
+      "target": "振奋宝石",
+      "tag": "装备"
+    },
+    {
+      "source": "platemail",
+      "target": "板甲",
+      "tag": "装备"
+    },
+    {
+      "source": "talisman of evasion",
+      "target": "闪避护符",
+      "tag": "装备"
+    },
+    {
+      "source": "quarterstaff",
+      "target": "短棍",
+      "tag": "装备"
+    },
+    {
+      "source": "blades of attack",
+      "target": "攻击之爪",
+      "tag": "装备"
+    },
+    {
+      "source": "chainmail",
+      "target": "锁子甲",
+      "tag": "装备"
+    },
+    {
+      "source": "gloves of haste",
+      "target": "加速手套",
+      "tag": "装备"
+    },
+    {
+      "source": "sage's mask",
+      "target": "贤者面罩",
+      "tag": "装备"
+    },
+    {
+      "source": "vitality booster",
+      "target": "活力之球",
+      "tag": "装备"
+    },
+    {
+      "source": "energy booster",
+      "target": "能量之球",
+      "tag": "装备"
+    },
+    {
+      "source": "point booster",
+      "target": "精气之球",
+      "tag": "装备"
+    },
+    {
+      "source": "falcon blade",
+      "target": "猎鹰之刃",
+      "tag": "装备"
+    },
+    {
+      "source": "orb of venom",
+      "target": "剧毒之珠（毒球）",
+      "tag": "装备"
+    },
+    {
+      "source": "blight stone",
+      "target": "枯萎之石",
+      "tag": "装备"
+    },
+    {
+      "source": "orb of corrosion",
+      "target": "腐蚀之球",
+      "tag": "装备"
+    },
+    {
+      "source": "infused raindrop",
+      "target": "聚能雨滴（雨滴）",
+      "tag": "装备"
+    },
+    {
+      "source": "shadow blade",
+      "target": "影刃（隐刀）",
+      "tag": "装备"
+    },
+    {
+      "source": "silver edge",
+      "target": "白银之锋（大隐刀）",
+      "tag": "装备"
+    },
+    {
+      "source": "manta style",
+      "target": "幻影斧（分身斧）",
+      "tag": "装备"
+    },
+    {
+      "source": "manta",
+      "target": "幻影斧",
+      "tag": "装备"
+    },
+    {
+      "source": "diffusal blade",
+      "target": "散失之刃（散失）",
+      "tag": "装备"
+    },
+    {
+      "source": "disperser",
+      "target": "消散之刃",
+      "tag": "装备"
+    },
+    {
+      "source": "eye of skadi",
+      "target": "斯嘉蒂之眼（冰眼）",
+      "tag": "装备"
+    },
+    {
+      "source": "skadi",
+      "target": "斯嘉蒂之眼（冰眼）",
+      "tag": "装备"
+    },
+    {
+      "source": "butterfly",
+      "target": "蝴蝶",
+      "tag": "装备"
+    },
+    {
+      "source": "monkey king bar",
+      "target": "金箍棒（MKB）",
+      "tag": "装备"
+    },
+    {
+      "source": "mkb",
+      "target": "金箍棒",
+      "tag": "装备"
+    },
+    {
+      "source": "daedalus",
+      "target": "代达罗斯之殇（大炮）",
+      "tag": "装备"
+    },
+    {
+      "source": "desolator",
+      "target": "黯灭",
+      "tag": "装备"
+    },
+    {
+      "source": "assault cuirass",
+      "target": "强袭装甲（强袭）",
+      "tag": "装备"
+    },
+    {
+      "source": "ac",
+      "target": "强袭装甲",
+      "tag": "装备"
+    },
+    {
+      "source": "heart of tarrasque",
+      "target": "恐鳌之心（龙心）",
+      "tag": "装备"
+    },
+    {
+      "source": "heart",
+      "target": "恐鳌之心（龙心）",
+      "tag": "装备"
+    },
+    {
+      "source": "black king bar",
+      "target": "黑皇杖（BKB）",
+      "tag": "装备"
+    },
+    {
+      "source": "linken's sphere",
+      "target": "林肯法球",
+      "tag": "装备"
+    },
+    {
+      "source": "linkens",
+      "target": "林肯法球",
+      "tag": "装备"
+    },
+    {
+      "source": "satanic",
+      "target": "撒旦之邪力（撒旦）",
+      "tag": "装备"
+    },
+    {
+      "source": "skull basher",
+      "target": "碎颅锤（小晕锤）",
+      "tag": "装备"
+    },
+    {
+      "source": "abyssal blade",
+      "target": "深渊之刃（大晕锤）",
+      "tag": "装备"
+    },
+    {
+      "source": "battle fury",
+      "target": "狂战斧",
+      "tag": "装备"
+    },
+    {
+      "source": "maelstrom",
+      "target": "漩涡（电锤）",
+      "tag": "装备"
+    },
+    {
+      "source": "mjollnir",
+      "target": "雷神之锤（大电锤）",
+      "tag": "装备"
+    },
+    {
+      "source": "crimson guard",
+      "target": "赤红甲（赤甲）",
+      "tag": "装备"
+    },
+    {
+      "source": "pipe of insight",
+      "target": "洞察烟斗（笛子）",
+      "tag": "装备"
+    },
+    {
+      "source": "pipe",
+      "target": "洞察烟斗（笛子）",
+      "tag": "装备"
+    },
+    {
+      "source": "hood of defiance",
+      "target": "挑战头巾",
+      "tag": "装备"
+    },
+    {
+      "source": "blade mail",
+      "target": "刃甲",
+      "tag": "装备"
+    },
+    {
+      "source": "shiva's guard",
+      "target": "希瓦的守护（冰甲）",
+      "tag": "装备"
+    },
+    {
+      "source": "heaven's halberd",
+      "target": "天堂之戟（天堂）",
+      "tag": "装备"
+    },
+    {
+      "source": "halberd",
+      "target": "天堂之戟",
+      "tag": "装备"
+    },
+    {
+      "source": "eul's scepter of divinity",
+      "target": "Eul的神圣法杖（风杖）",
+      "tag": "装备"
+    },
+    {
+      "source": "euls",
+      "target": "风杖",
+      "tag": "装备"
+    },
+    {
+      "source": "scythe of vyse",
+      "target": "邪恶镰刀（羊刀）",
+      "tag": "装备"
+    },
+    {
+      "source": "sheepstick",
+      "target": "邪恶镰刀（羊刀）",
+      "tag": "装备"
+    },
+    {
+      "source": "rod of atos",
+      "target": "阿托斯之棍（阿托斯）",
+      "tag": "装备"
+    },
+    {
+      "source": "atos",
+      "target": "阿托斯之棍",
+      "tag": "装备"
+    },
+    {
+      "source": "orchid malevolence",
+      "target": "紫怨",
+      "tag": "装备"
+    },
+    {
+      "source": "orchid",
+      "target": "紫怨",
+      "tag": "装备"
+    },
+    {
+      "source": "bloodthorn",
+      "target": "血棘",
+      "tag": "装备"
+    },
+    {
+      "source": "nullifier",
+      "target": "否决坠饰（否决）",
+      "tag": "装备"
+    },
+    {
+      "source": "octarine core",
+      "target": "玲珑心",
+      "tag": "装备"
+    },
+    {
+      "source": "octarine",
+      "target": "玲珑心",
+      "tag": "装备"
+    },
+    {
+      "source": "refresher orb",
+      "target": "刷新球",
+      "tag": "装备"
+    },
+    {
+      "source": "refresher",
+      "target": "刷新球",
+      "tag": "装备"
+    },
+    {
+      "source": "aghanim's scepter",
+      "target": "阿哈利姆神杖（A杖）",
+      "tag": "装备"
+    },
+    {
+      "source": "aghanim's blessing",
+      "target": "阿哈利姆的祝福",
+      "tag": "装备"
+    },
+    {
+      "source": "shard",
+      "target": "阿哈利姆魔晶",
+      "tag": "装备"
+    },
+    {
+      "source": "aghanim's shard",
+      "target": "阿哈利姆魔晶",
+      "tag": "装备"
+    },
+    {
+      "source": "aeon disk",
+      "target": "永恒之盘（盘子）",
+      "tag": "装备"
+    },
+    {
+      "source": "meteor hammer",
+      "target": "陨星锤",
+      "tag": "装备"
+    },
+    {
+      "source": "radiance",
+      "target": "辉耀",
+      "tag": "装备"
+    },
+    {
+      "source": "mask of madness",
+      "target": "疯狂面具（疯脸）",
+      "tag": "装备"
+    },
+    {
+      "source": "helm of the dominator",
+      "target": "支配头盔（支配）",
+      "tag": "装备"
+    },
+    {
+      "source": "helm of the overlord",
+      "target": "统领头盔",
+      "tag": "装备"
+    },
+    {
+      "source": "vladmir's offering",
+      "target": "弗拉迪米尔的祭品（祭品）",
+      "tag": "装备"
+    },
+    {
+      "source": "vlad",
+      "target": "弗拉迪米尔的祭品（祭品）",
+      "tag": "装备"
+    },
+    {
+      "source": "mekansm",
+      "target": "梅肯斯姆（梅肯）",
+      "tag": "装备"
+    },
+    {
+      "source": "glimmer cape",
+      "target": "微光披风（微光）",
+      "tag": "装备"
+    },
+    {
+      "source": "glimmer",
+      "target": "微光披风（微光）",
+      "tag": "装备"
+    },
+    {
+      "source": "hurricane pike",
+      "target": "飓风长戟（长戟）",
+      "tag": "装备"
+    },
+    {
+      "source": "pike",
+      "target": "飓风长戟",
+      "tag": "装备"
+    },
+    {
+      "source": "ghost scepter",
+      "target": "幽魂权杖（绿杖）",
+      "tag": "装备"
+    },
+    {
+      "source": "ghost",
+      "target": "幽魂权杖（绿杖）",
+      "tag": "装备"
+    },
+    {
+      "source": "ethereal blade",
+      "target": "虚灵之刃（虚灵刀）",
+      "tag": "装备"
+    },
+    {
+      "source": "eblade",
+      "target": "虚灵之刃（虚灵刀）",
+      "tag": "装备"
+    },
+    {
+      "source": "aether lens",
+      "target": "以太透镜（以太）",
+      "tag": "装备"
+    },
+    {
+      "source": "kaya",
+      "target": "卡亚之镜",
+      "tag": "装备"
+    },
+    {
+      "source": "yasha",
+      "target": "夜叉",
+      "tag": "装备"
+    },
+    {
+      "source": "sange",
+      "target": "散华",
+      "tag": "装备"
+    },
+    {
+      "source": "sange and yasha",
+      "target": "散夜对剑（双刀）",
+      "tag": "装备"
+    },
+    {
+      "source": "sny",
+      "target": "散夜对剑（双刀）",
+      "tag": "装备"
+    },
+    {
+      "source": "yasha and kaya",
+      "target": "慧夜对剑",
+      "tag": "装备"
+    },
+    {
+      "source": "kaya and sange",
+      "target": "慧散对剑",
+      "tag": "装备"
+    },
+    {
+      "source": "hand of midas",
+      "target": "迈达斯之手（点金手）",
+      "tag": "装备"
+    },
+    {
+      "source": "midas",
+      "target": "迈达斯之手（点金手）",
+      "tag": "装备"
+    },
+    {
+      "source": "oblivion staff",
+      "target": "遗忘法杖",
+      "tag": "装备"
+    },
+    {
+      "source": "echo sabre",
+      "target": "回音战刃（连击刀）",
+      "tag": "装备"
+    },
+    {
+      "source": "dragon lance",
+      "target": "龙枪",
+      "tag": "装备"
+    },
+    {
+      "source": "veil of discord",
+      "target": "纷争面纱（纷争）",
+      "tag": "装备"
+    },
+    {
+      "source": "dagon",
+      "target": "达贡之神力（大根）",
+      "tag": "装备"
+    },
+    {
+      "source": "necronomicon",
+      "target": "死灵书",
+      "tag": "装备"
+    },
+    {
+      "source": "bloodstone",
+      "target": "血精石",
+      "tag": "装备"
+    },
+    {
+      "source": "lotus orb",
+      "target": "莲花宝珠（莲花）",
+      "tag": "装备"
+    },
+    {
+      "source": "lotus",
+      "target": "莲花宝珠（莲花）",
+      "tag": "装备"
+    },
+    {
+      "source": "solar crest",
+      "target": "烈日印记（大勋章）",
+      "tag": "装备"
+    },
+    {
+      "source": "medallion of courage",
+      "target": "勇气勋章（小勋章）",
+      "tag": "装备"
+    },
+    {
+      "source": "armlet of mordiggian",
+      "target": "莫尔迪基安的臂章（臂章）",
+      "tag": "装备"
+    },
+    {
+      "source": "armlet",
+      "target": "臂章",
+      "tag": "装备"
+    },
+    {
+      "source": "gleipnir",
+      "target": "格莱普尼尔（捆仙索）",
+      "tag": "装备"
+    },
+    {
+      "source": "overwhelming blink",
+      "target": "超载闪烁匕首（大跳刀）",
+      "tag": "装备"
+    },
+    {
+      "source": "swift blink",
+      "target": "迅捷闪烁匕首",
+      "tag": "装备"
+    },
+    {
+      "source": "arcane blink",
+      "target": "秘法闪烁匕首",
+      "tag": "装备"
+    },
+    {
+      "source": "harpoon",
+      "target": "鱼叉",
+      "tag": "装备"
+    },
+    {
+      "source": "eternal shroud",
+      "target": "永恒之幕",
+      "tag": "装备"
+    },
+    {
+      "source": "witch blade",
+      "target": "女巫之刃",
+      "tag": "装备"
+    },
+    {
+      "source": "pudge",
+      "target": "屠夫",
+      "tag": "英雄"
+    },
+    {
+      "source": "invoker",
+      "target": "祈求者（卡尔）",
+      "tag": "英雄"
+    },
+    {
+      "source": "sf",
+      "target": "影魔",
+      "tag": "英雄"
+    },
+    {
+      "source": "shadow fiend",
+      "target": "影魔",
+      "tag": "英雄"
+    },
+    {
+      "source": "am",
+      "target": "敌法师",
+      "tag": "英雄"
+    },
+    {
+      "source": "anti-mage",
+      "target": "敌法师",
+      "tag": "英雄"
+    },
+    {
+      "source": "pa",
+      "target": "幻影刺客",
+      "tag": "英雄"
+    },
+    {
+      "source": "phantom assassin",
+      "target": "幻影刺客",
+      "tag": "英雄"
+    },
+    {
+      "source": "jugg",
+      "target": "主宰（剑圣）",
+      "tag": "英雄"
+    },
+    {
+      "source": "juggernaut",
+      "target": "主宰（剑圣）",
+      "tag": "英雄"
+    },
+    {
+      "source": "axe",
+      "target": "斧王",
+      "tag": "英雄"
+    },
+    {
+      "source": "cm",
+      "target": "水晶室女（冰女）",
+      "tag": "英雄"
+    },
+    {
+      "source": "crystal maiden",
+      "target": "水晶室女（冰女）",
+      "tag": "英雄"
+    },
+    {
+      "source": "lion",
+      "target": "恶魔巫师（莱恩）",
+      "tag": "英雄"
+    },
+    {
+      "source": "sniper",
+      "target": "狙击手（火枪）",
+      "tag": "英雄"
+    },
+    {
+      "source": "drow",
+      "target": "卓尔游侠（小黑）",
+      "tag": "英雄"
+    },
+    {
+      "source": "drow ranger",
+      "target": "卓尔游侠（小黑）",
+      "tag": "英雄"
+    },
+    {
+      "source": "wk",
+      "target": "冥魂大帝（骷髅王）",
+      "tag": "英雄"
+    },
+    {
+      "source": "wraith king",
+      "target": "冥魂大帝（骷髅王）",
+      "tag": "英雄"
+    },
+    {
+      "source": "tinker",
+      "target": "修补匠",
+      "tag": "英雄"
+    },
+    {
+      "source": "storm",
+      "target": "风暴之灵（蓝猫）",
+      "tag": "英雄"
+    },
+    {
+      "source": "storm spirit",
+      "target": "风暴之灵（蓝猫）",
+      "tag": "英雄"
+    },
+    {
+      "source": "qop",
+      "target": "痛苦女王",
+      "tag": "英雄"
+    },
+    {
+      "source": "queen of pain",
+      "target": "痛苦女王",
+      "tag": "英雄"
+    },
+    {
+      "source": "morphling",
+      "target": "变体精灵（水人）",
+      "tag": "英雄"
+    },
+    {
+      "source": "morph",
+      "target": "变体精灵（水人）",
+      "tag": "英雄"
+    },
+    {
+      "source": "spectre",
+      "target": "幽鬼",
+      "tag": "英雄"
+    },
+    {
+      "source": "spec",
+      "target": "幽鬼",
+      "tag": "英雄"
+    },
+    {
+      "source": "ursa",
+      "target": "熊战士（拍拍熊）",
+      "tag": "英雄"
+    },
+    {
+      "source": "slark",
+      "target": "斯拉克（小鱼人）",
+      "tag": "英雄"
+    },
+    {
+      "source": "razor",
+      "target": "闪电幽魂（电魂）",
+      "tag": "英雄"
+    },
+    {
+      "source": "viper",
+      "target": "冥界亚龙（毒龙）",
+      "tag": "英雄"
+    },
+    {
+      "source": "zeus",
+      "target": "宙斯",
+      "tag": "英雄"
+    },
+    {
+      "source": "lina",
+      "target": "莉娜（火女）",
+      "tag": "英雄"
+    },
+    {
+      "source": "es",
+      "target": "撼地者（牛头）",
+      "tag": "英雄"
+    },
+    {
+      "source": "earthshaker",
+      "target": "撼地者（牛头）",
+      "tag": "英雄"
+    },
+    {
+      "source": "shaker",
+      "target": "撼地者（牛头）",
+      "tag": "英雄"
+    },
+    {
+      "source": "tide",
+      "target": "潮汐猎人",
+      "tag": "英雄"
+    },
+    {
+      "source": "tidehunter",
+      "target": "潮汐猎人",
+      "tag": "英雄"
+    },
+    {
+      "source": "enigma",
+      "target": "谜团",
+      "tag": "英雄"
+    },
+    {
+      "source": "magnus",
+      "target": "玛格纳斯（猛犸）",
+      "tag": "英雄"
+    },
+    {
+      "source": "dark seer",
+      "target": "黑暗贤者（兔子）",
+      "tag": "英雄"
+    },
+    {
+      "source": "ds",
+      "target": "黑暗贤者（兔子）",
+      "tag": "英雄"
+    },
+    {
+      "source": "batrider",
+      "target": "蝙蝠骑士（蝙蝠）",
+      "tag": "英雄"
+    },
+    {
+      "source": "brewmaster",
+      "target": "酒仙（熊猫）",
+      "tag": "英雄"
+    },
+    {
+      "source": "brew",
+      "target": "酒仙（熊猫）",
+      "tag": "英雄"
+    },
+    {
+      "source": "doom",
+      "target": "末日使者",
+      "tag": "英雄"
+    },
+    {
+      "source": "lc",
+      "target": "军团指挥官",
+      "tag": "英雄"
+    },
+    {
+      "source": "legion commander",
+      "target": "军团指挥官",
+      "tag": "英雄"
+    },
+    {
+      "source": "slardar",
+      "target": "斯拉达（鱼人）",
+      "tag": "英雄"
+    },
+    {
+      "source": "centaur",
+      "target": "半人马战行者（人马）",
+      "tag": "英雄"
+    },
+    {
+      "source": "clockwerk",
+      "target": "发条技师（发条）",
+      "tag": "英雄"
+    },
+    {
+      "source": "clock",
+      "target": "发条技师（发条）",
+      "tag": "英雄"
+    },
+    {
+      "source": "nyx",
+      "target": "司夜刺客（小强）",
+      "tag": "英雄"
+    },
+    {
+      "source": "bounty hunter",
+      "target": "赏金猎人",
+      "tag": "英雄"
+    },
+    {
+      "source": "bh",
+      "target": "赏金猎人",
+      "tag": "英雄"
+    },
+    {
+      "source": "riki",
+      "target": "力丸（隐形刺客）",
+      "tag": "英雄"
+    },
+    {
+      "source": "clinkz",
+      "target": "克林克兹（骨弓）",
+      "tag": "英雄"
+    },
+    {
+      "source": "weaver",
+      "target": "编织者（蚂蚁）",
+      "tag": "英雄"
+    },
+    {
+      "source": "broodmother",
+      "target": "育母蜘蛛（蜘蛛）",
+      "tag": "英雄"
+    },
+    {
+      "source": "brood",
+      "target": "育母蜘蛛（蜘蛛）",
+      "tag": "英雄"
+    },
+    {
+      "source": "meepo",
+      "target": "米波（地卜师）",
+      "tag": "英雄"
+    },
+    {
+      "source": "techies",
+      "target": "爆破工程师（炸弹人）",
+      "tag": "英雄"
+    },
+    {
+      "source": "pugna",
+      "target": "遗忘法师（骨法）",
+      "tag": "英雄"
+    },
+    {
+      "source": "necrophos",
+      "target": "瘟疫法师（死灵法）",
+      "tag": "英雄"
+    },
+    {
+      "source": "nec",
+      "target": "瘟疫法师（死灵法）",
+      "tag": "英雄"
+    },
+    {
+      "source": "od",
+      "target": "殁境神蚀者（黑鸟）",
+      "tag": "英雄"
+    },
+    {
+      "source": "outworld destroyer",
+      "target": "殁境神蚀者（黑鸟）",
+      "tag": "英雄"
+    },
+    {
+      "source": "silencer",
+      "target": "沉默术士",
+      "tag": "英雄"
+    },
+    {
+      "source": "warlock",
+      "target": "术士",
+      "tag": "英雄"
+    },
+    {
+      "source": "witch doctor",
+      "target": "巫医",
+      "tag": "英雄"
+    },
+    {
+      "source": "wd",
+      "target": "巫医",
+      "tag": "英雄"
+    },
+    {
+      "source": "dazzle",
+      "target": "戴泽（暗影牧师）",
+      "tag": "英雄"
+    },
+    {
+      "source": "oracle",
+      "target": "神谕者",
+      "tag": "英雄"
+    },
+    {
+      "source": "winter wyvern",
+      "target": "寒冬飞龙（冰龙）",
+      "tag": "英雄"
+    },
+    {
+      "source": "ww",
+      "target": "寒冬飞龙（冰龙）",
+      "tag": "英雄"
+    },
+    {
+      "source": "phoenix",
+      "target": "凤凰",
+      "tag": "英雄"
+    },
+    {
+      "source": "earth spirit",
+      "target": "大地之灵（土猫）",
+      "tag": "英雄"
+    },
+    {
+      "source": "ember spirit",
+      "target": "灰烬之灵（火猫）",
+      "tag": "英雄"
+    },
+    {
+      "source": "monkey king",
+      "target": "齐天大圣（猴子）",
+      "tag": "英雄"
+    },
+    {
+      "source": "mk",
+      "target": "齐天大圣（猴子）",
+      "tag": "英雄"
+    },
+    {
+      "source": "mars",
+      "target": "玛尔斯",
+      "tag": "英雄"
+    },
+    {
+      "source": "fv",
+      "target": "虚空假面",
+      "tag": "英雄"
+    },
+    {
+      "source": "faceless void",
+      "target": "虚空假面",
+      "tag": "英雄"
+    },
+    {
+      "source": "void",
+      "target": "虚空假面",
+      "tag": "英雄"
+    },
+    {
+      "source": "medusa",
+      "target": "美杜莎（一姐）",
+      "tag": "英雄"
+    },
+    {
+      "source": "troll",
+      "target": "巨魔战将",
+      "tag": "英雄"
+    },
+    {
+      "source": "tusk",
+      "target": "巨牙海民（海民）",
+      "tag": "英雄"
+    },
+    {
+      "source": "bristleback",
+      "target": "刚背兽（刚背）",
+      "tag": "英雄"
+    },
+    {
+      "source": "bb",
+      "target": "刚背兽（刚背）",
+      "tag": "英雄"
+    },
+    {
+      "source": "timbersaw",
+      "target": "伐木机",
+      "tag": "英雄"
+    },
+    {
+      "source": "sand king",
+      "target": "沙王",
+      "tag": "英雄"
+    },
+    {
+      "source": "sk",
+      "target": "沙王",
+      "tag": "英雄"
+    },
+    {
+      "source": "lich",
+      "target": "巫妖",
+      "tag": "英雄"
+    },
+    {
+      "source": "aa",
+      "target": "远古冰魄（冰魂）",
+      "tag": "英雄"
+    },
+    {
+      "source": "ancient apparition",
+      "target": "远古冰魄（冰魂）",
+      "tag": "英雄"
+    },
+    {
+      "source": "jakiro",
+      "target": "双头龙",
+      "tag": "英雄"
+    },
+    {
+      "source": "ogre magi",
+      "target": "食人魔魔法师（蓝胖）",
+      "tag": "英雄"
+    },
+    {
+      "source": "ogre",
+      "target": "食人魔魔法师（蓝胖）",
+      "tag": "英雄"
+    },
+    {
+      "source": "spirit breaker",
+      "target": "裂魂人（白牛）",
+      "tag": "英雄"
+    },
+    {
+      "source": "sb",
+      "target": "裂魂人（白牛）",
+      "tag": "英雄"
+    },
+    {
+      "source": "huskar",
+      "target": "哈斯卡（神灵武士）",
+      "tag": "英雄"
+    },
+    {
+      "source": "alchemist",
+      "target": "炼金术士（炼金）",
+      "tag": "英雄"
+    },
+    {
+      "source": "ld",
+      "target": "德鲁伊（熊德）",
+      "tag": "英雄"
+    },
+    {
+      "source": "lone druid",
+      "target": "德鲁伊（熊德）",
+      "tag": "英雄"
+    },
+    {
+      "source": "naga",
+      "target": "娜迦海妖（小娜迦）",
+      "tag": "英雄"
+    },
+    {
+      "source": "naga siren",
+      "target": "娜迦海妖（小娜迦）",
+      "tag": "英雄"
+    },
+    {
+      "source": "tb",
+      "target": "恐怖利刃",
+      "tag": "英雄"
+    },
+    {
+      "source": "terrorblade",
+      "target": "恐怖利刃",
+      "tag": "英雄"
+    },
+    {
+      "source": "ck",
+      "target": "混沌骑士",
+      "tag": "英雄"
+    },
+    {
+      "source": "chaos knight",
+      "target": "混沌骑士",
+      "tag": "英雄"
+    },
+    {
+      "source": "sven",
+      "target": "斯温（流浪剑客）",
+      "tag": "英雄"
+    },
+    {
+      "source": "tiny",
+      "target": "小小",
+      "tag": "英雄"
+    },
+    {
+      "source": "kunkka",
+      "target": "舰队统帅（船长）",
+      "tag": "英雄"
+    },
+    {
+      "source": "dk",
+      "target": "龙骑士",
+      "tag": "英雄"
+    },
+    {
+      "source": "dragon knight",
+      "target": "龙骑士",
+      "tag": "英雄"
+    },
+    {
+      "source": "abaddon",
+      "target": "亚巴顿（死亡骑士）",
+      "tag": "英雄"
+    },
+    {
+      "source": "omniknight",
+      "target": "全能骑士（全能）",
+      "tag": "英雄"
+    },
+    {
+      "source": "omni",
+      "target": "全能骑士（全能）",
+      "tag": "英雄"
+    },
+    {
+      "source": "undying",
+      "target": "不朽尸王（僵尸）",
+      "tag": "英雄"
+    },
+    {
+      "source": "visage",
+      "target": "维萨吉（死灵龙）",
+      "tag": "英雄"
+    },
+    {
+      "source": "shadow shaman",
+      "target": "暗影萨魔（小Y）",
+      "tag": "英雄"
+    },
+    {
+      "source": "rhasta",
+      "target": "暗影萨魔（小Y）",
+      "tag": "英雄"
+    },
+    {
+      "source": "enchantress",
+      "target": "魅惑魔女（小鹿）",
+      "tag": "英雄"
+    },
+    {
+      "source": "ench",
+      "target": "魅惑魔女（小鹿）",
+      "tag": "英雄"
+    },
+    {
+      "source": "chen",
+      "target": "圣骑士（陈）",
+      "tag": "英雄"
+    },
+    {
+      "source": "io",
+      "target": "艾欧（小精灵）",
+      "tag": "英雄"
+    },
+    {
+      "source": "wisp",
+      "target": "艾欧（小精灵）",
+      "tag": "英雄"
+    },
+    {
+      "source": "aw",
+      "target": "天穹守望者（电狗）",
+      "tag": "英雄"
+    },
+    {
+      "source": "arc warden",
+      "target": "天穹守望者（电狗）",
+      "tag": "英雄"
+    },
+    {
+      "source": "pangolier",
+      "target": "石鳞剑士（穿山甲）",
+      "tag": "英雄"
+    },
+    {
+      "source": "radiant",
+      "target": "天辉",
+      "tag": "机制"
+    },
+    {
+      "source": "dire",
+      "target": "夜魇",
+      "tag": "机制"
+    },
+    {
+      "source": "tower",
+      "target": "防御塔",
+      "tag": "机制"
+    },
+    {
+      "source": "t1",
+      "target": "一塔",
+      "tag": "机制"
+    },
+    {
+      "source": "t2",
+      "target": "二塔",
+      "tag": "机制"
+    },
+    {
+      "source": "creep",
+      "target": "小兵",
+      "tag": "机制"
+    },
+    {
+      "source": "stack",
+      "target": "堆野",
+      "tag": "机制"
+    },
+    {
+      "source": "pull",
+      "target": "拉野",
+      "tag": "机制"
+    },
+    {
+      "source": "roam",
+      "target": "游走",
+      "tag": "机制"
+    },
+    {
+      "source": "split push",
+      "target": "分推",
+      "tag": "机制"
+    },
+    {
+      "source": "teamfight",
+      "target": "团战",
+      "tag": "机制"
+    },
+    {
+      "source": "initiation",
+      "target": "先手",
+      "tag": "机制"
+    },
+    {
+      "source": "focus",
+      "target": "集火",
+      "tag": "机制"
+    },
+    {
+      "source": "kite",
+      "target": "风筝",
+      "tag": "机制"
+    },
+    {
+      "source": "bait",
+      "target": "引诱",
+      "tag": "机制"
+    },
+    {
+      "source": "def",
+      "target": "防守",
+      "tag": "机制"
+    },
+    {
+      "source": "tormentor",
+      "target": "折磨者",
+      "tag": "机制"
+    },
+    {
+      "source": "wisdom rune",
+      "target": "智慧神符",
+      "tag": "机制"
+    },
+    {
+      "source": "haste rune",
+      "target": "极速神符",
+      "tag": "机制"
+    },
+    {
+      "source": "dd",
+      "target": "双倍伤害神符",
+      "tag": "机制"
+    },
+    {
+      "source": "double damage",
+      "target": "双倍伤害神符",
+      "tag": "机制"
+    },
+    {
+      "source": "regen rune",
+      "target": "恢复神符",
+      "tag": "机制"
+    },
+    {
+      "source": "invis rune",
+      "target": "隐身神符",
+      "tag": "机制"
+    },
+    {
+      "source": "illusion rune",
+      "target": "幻象神符",
+      "tag": "机制"
+    },
+    {
+      "source": "arcane rune",
+      "target": "奥术神符",
+      "tag": "机制"
+    },
+    {
+      "source": "mmr",
+      "target": "天梯分",
+      "tag": "机制"
+    },
+    {
+      "source": "rank",
+      "target": "段位",
+      "tag": "机制"
+    },
+    {
+      "source": "calibration",
+      "target": "定位赛",
+      "tag": "机制"
+    },
+    {
+      "source": "report",
+      "target": "举报",
+      "tag": "机制"
+    },
+    {
+      "source": "abandon",
+      "target": "挂机",
+      "tag": "机制"
+    },
+    {
+      "source": "afk",
+      "target": "挂机",
+      "tag": "机制"
+    },
+    {
+      "source": "low priority",
+      "target": "低优先级（惩罚局）",
+      "tag": "机制"
+    },
+    {
+      "source": "lp",
+      "target": "惩罚局",
+      "tag": "机制"
+    },
+    {
+      "source": "ez",
+      "target": "太简单",
+      "tag": "机制"
+    },
+    {
+      "source": "wp",
+      "target": "打得好",
+      "tag": "机制"
+    },
+    {
+      "source": "gg wp",
+      "target": "打得好",
+      "tag": "机制"
+    },
+    {
+      "source": "end",
+      "target": "推完",
+      "tag": "机制"
+    }
   ]
 }
