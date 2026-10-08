@@ -2,19 +2,27 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const state = vi.hoisted(() => ({
   registered: new Set<string>(),
+  handlers: new Map<string, () => void>(),
   registerResult: true
 }))
 
 vi.mock('electron', () => ({
   globalShortcut: {
     isRegistered: (a: string) => state.registered.has(a),
-    register: (a: string) => {
+    register: (a: string, h: () => void) => {
       if (!state.registerResult) return false
       state.registered.add(a)
+      state.handlers.set(a, h)
       return true
     },
-    unregister: (a: string) => state.registered.delete(a),
-    unregisterAll: () => state.registered.clear()
+    unregister: (a: string) => {
+      state.registered.delete(a)
+      state.handlers.delete(a)
+    },
+    unregisterAll: () => {
+      state.registered.clear()
+      state.handlers.clear()
+    }
   }
 }))
 
@@ -41,6 +49,7 @@ const noop = (): (() => void) => () => {}
 
 beforeEach(() => {
   state.registered.clear()
+  state.handlers.clear()
   state.registerResult = true
 })
 
@@ -117,5 +126,66 @@ describe('功能快捷键改键（rebind）', () => {
       .prepare("SELECT accelerators FROM hotkeys WHERE action_code='translate_replace'")
       .get() as { accelerators: string }
     expect(row.accelerators).toBe('Ctrl+Shift+Q')
+  })
+
+  it('改键后立即生效：旧键解绑、新键绑定真实处理函数', () => {
+    const { hm } = setup()
+    let fired = 0
+    hm.registerAll({ translate_replace: () => (fired += 1) })
+    expect(state.registered.has('Ctrl+Alt+1')).toBe(true)
+
+    expect(hm.rebind('translate_replace', 'Ctrl+Shift+Q').ok).toBe(true)
+    expect(state.registered.has('Ctrl+Alt+1')).toBe(false)
+    expect(state.registered.has('Ctrl+Shift+Q')).toBe(true)
+    state.handlers.get('Ctrl+Shift+Q')!()
+    expect(fired).toBe(1)
+  })
+
+  it('改键未被注册过的动作也只写库，不影响其它键', () => {
+    const { hm } = setup()
+    hm.registerAll({ translate_clipboard: () => undefined })
+    const r = hm.rebind('translate_replace', 'Ctrl+Shift+W')
+    expect(r.ok).toBe(true)
+    expect(state.registered.has('Ctrl+Shift+W')).toBe(false)
+    expect(state.registered.has('Ctrl+Alt+2')).toBe(true)
+  })
+
+  it('新键注册失败时回滚数据库并恢复旧键', () => {
+    const { hm, db } = setup()
+    hm.registerAll({ translate_replace: () => undefined })
+    state.registerResult = false
+    const r = hm.rebind('translate_replace', 'Ctrl+Shift+E')
+    expect(r.ok).toBe(false)
+    const row = db
+      .prepare("SELECT accelerators FROM hotkeys WHERE action_code='translate_replace'")
+      .get() as { accelerators: string }
+    expect(row.accelerators).toBe('Ctrl+Alt+1')
+    expect(state.registered.has('Ctrl+Alt+1')).toBe(true)
+  })
+})
+
+describe('功能快捷键启停（setEnabled）', () => {
+  it('禁用立即解绑，启用立即重新绑定', () => {
+    const { hm, db } = setup()
+    let fired = 0
+    hm.registerAll({ translate_replace: () => (fired += 1) })
+
+    hm.setEnabled('translate_replace', false)
+    expect(state.registered.has('Ctrl+Alt+1')).toBe(false)
+    expect(
+      (db.prepare("SELECT enabled FROM hotkeys WHERE action_code='translate_replace'").get() as {
+        enabled: number
+      }).enabled
+    ).toBe(0)
+
+    hm.setEnabled('translate_replace', true)
+    expect(state.registered.has('Ctrl+Alt+1')).toBe(true)
+    state.handlers.get('Ctrl+Alt+1')!()
+    expect(fired).toBe(1)
+  })
+
+  it('动作不存在时不抛错', () => {
+    const { hm } = setup()
+    expect(() => hm.setEnabled('nope', true)).not.toThrow()
   })
 })
