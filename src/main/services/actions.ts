@@ -6,8 +6,9 @@ import { ModelConfigService } from './model-config'
 import { UsageService } from './usage'
 import { translateText } from './translate'
 import { resolveGlossary } from './term-match'
-import { readSelectedText, pasteText } from './keystrokes'
+import { readSelectedText, pasteText, selectAllText } from './keystrokes'
 import { notify } from '../ipc'
+import { buildProgressPlaceholder } from '../../shared/progress'
 
 export interface ActionContext {
   win: BrowserWindow
@@ -26,6 +27,8 @@ function services(db: Db) {
 export async function actionTranslateReplace(ctx: ActionContext): Promise<void> {
   const { win, db } = ctx
   const { settings, models, usage } = services(db)
+  let original = ''
+  let placeholderShown = false
   try {
     const config = models.getDefault()
     if (!config) {
@@ -33,13 +36,17 @@ export async function actionTranslateReplace(ctx: ActionContext): Promise<void> 
       return
     }
     notify(win, { type: 'loading', message: '正在读取并翻译…' })
-    const original = await readSelectedText()
+    original = await readSelectedText()
     if (!original) {
       notify(win, { type: 'error', message: '未读取到文本，请确认光标在聊天输入框' })
       return
     }
     const current = settings.getAll()
     const terms = resolveGlossary(db, current, original)
+    // 先把原文替换为进度占位文本，让玩家知道翻译正在进行
+    const placeholder = buildProgressPlaceholder(current)
+    await pasteText(placeholder)
+    placeholderShown = true
     const result = await translateText({ text: original, config, settings: current, terms })
     usage.log({
       configId: config.id,
@@ -49,13 +56,21 @@ export async function actionTranslateReplace(ctx: ActionContext): Promise<void> 
       tokensIn: result.tokensIn,
       tokensOut: result.tokensOut
     })
+    // 重新全选占位文本，用译文替换
+    await selectAllText()
     await pasteText(result.text)
+    placeholderShown = false
     notify(win, { type: 'ok', message: '已替换为译文' })
   } catch (err) {
     notify(win, {
       type: 'error',
       message: err instanceof Error ? err.message : '翻译失败'
     })
+    // 占位已显示但翻译失败：把原文还原回输入框
+    if (placeholderShown && original) {
+      await selectAllText()
+      await pasteText(original)
+    }
   }
 }
 

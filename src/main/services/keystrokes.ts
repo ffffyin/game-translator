@@ -41,6 +41,13 @@ Start-Sleep -Milliseconds 120
 $ws.SendKeys('~')
 `
 
+const SELECT_ALL_SCRIPT =
+  PRELUDE +
+  `
+Start-Sleep -Milliseconds 120
+$ws.SendKeys('^a')
+`
+
 function encodedCommand(script: string): string {
   return Buffer.from(script, 'utf16le').toString('base64')
 }
@@ -63,6 +70,11 @@ export async function readSelectedText(): Promise<string> {
 // 把文本放入剪贴板并在当前窗口粘贴
 export async function pasteText(text: string): Promise<void> {
   await runScript(pasteScript(text))
+}
+
+// 全选当前窗口文本（用于粘贴替换前重新选中占位文本）
+export async function selectAllText(): Promise<void> {
+  await runScript(SELECT_ALL_SCRIPT)
 }
 
 export async function pressEnter(): Promise<void> {

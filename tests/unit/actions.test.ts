@@ -6,6 +6,7 @@ const hoisted = vi.hoisted(() => ({
   writeText: vi.fn(),
   readSelectedText: vi.fn(),
   pasteText: vi.fn(),
+  selectAllText: vi.fn(),
   pressEnter: vi.fn()
 }))
 
@@ -20,6 +21,7 @@ vi.mock('electron', () => ({
 vi.mock('../../src/main/services/keystrokes', () => ({
   readSelectedText: hoisted.readSelectedText,
   pasteText: hoisted.pasteText,
+  selectAllText: hoisted.selectAllText,
   pressEnter: hoisted.pressEnter
 }))
 
@@ -72,6 +74,7 @@ describe('翻译动作（快捷键 1/2）', () => {
     hoisted.writeText.mockReset()
     hoisted.readSelectedText.mockReset()
     hoisted.pasteText.mockReset()
+    hoisted.selectAllText.mockReset()
   })
 
   it('未配置模型：动作 1 给出明确错误提示', async () => {
@@ -125,7 +128,7 @@ describe('翻译动作（快捷键 1/2）', () => {
     expect(rows[0].tokens_out).toBe(5)
   })
 
-  it('动作 1 成功：译文粘贴替换、成功提示', async () => {
+  it('动作 1 成功：先粘贴进度占位，译文返回后全选并替换', async () => {
     hoisted.readSelectedText.mockResolvedValue('mid or feed')
     hoisted.create.mockResolvedValue({
       choices: [{ message: { content: '中路还是来支援' } }],
@@ -134,10 +137,30 @@ describe('翻译动作（快捷键 1/2）', () => {
     const { win, send } = fakeWin()
     await actionTranslateReplace({ win, db })
 
-    expect(hoisted.pasteText).toHaveBeenCalledWith('中路还是来支援')
+    // 第一次粘贴的是进度占位文本
+    expect(hoisted.pasteText).toHaveBeenCalledTimes(2)
+    const firstPaste = hoisted.pasteText.mock.calls[0][0]
+    expect(firstPaste).toContain('游戏翻译助手翻译中')
+    expect(firstPaste).toContain('场景:general')
+    expect(firstPaste).toContain('模式:auto')
+    // 译文返回后先全选再替换
+    expect(hoisted.selectAllText).toHaveBeenCalledTimes(1)
+    expect(hoisted.pasteText.mock.calls[1][0]).toBe('中路还是来支援')
     expect(hoisted.writeText).not.toHaveBeenCalled()
     const notes = payloads(send)
     expect(notes.some((n) => n.type === 'ok' && n.message.includes('已替换'))).toBe(true)
+  })
+
+  it('动作 1 翻译失败且占位已显示：把原文还原回输入框', async () => {
+    hoisted.readSelectedText.mockResolvedValue('hello mate')
+    hoisted.create.mockRejectedValue(new Error('500 server error'))
+    const { win } = fakeWin()
+    await actionTranslateReplace({ win, db })
+
+    expect(hoisted.pasteText).toHaveBeenCalledTimes(2)
+    expect(hoisted.pasteText.mock.calls[0][0]).toContain('翻译中')
+    expect(hoisted.selectAllText).toHaveBeenCalledTimes(1)
+    expect(hoisted.pasteText.mock.calls[1][0]).toBe('hello mate')
   })
 
   it('模型请求失败：错误提示透出原因，不记录用量', async () => {
