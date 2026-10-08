@@ -4,7 +4,7 @@ import type { HotkeyEntry } from './hotkeys'
 import type { RegionRect } from './region'
 import type { ResultData, RetranslateRequest } from './result'
 import type { LibView, TermView, TermInput } from './terms'
-import type { PhraseView } from './phrases'
+import type { PhraseView, PhrasePageView, PhrasePageInput } from './phrases'
 
 export interface NotifyPayload {
   type: 'ok' | 'error' | 'loading' | 'info'
@@ -140,8 +140,14 @@ export interface ApiContract {  ping: () => Promise<string>
     url: string
   ) => Promise<{ ok: boolean; message: string; results?: unknown[] }>
 
-  phrasesList: () => Promise<PhraseView[]>
-  phrasesCreate: (content: string) => Promise<number>
+  phrasesListPages: () => Promise<PhrasePageView[]>
+  phrasesCreatePage: (input: PhrasePageInput) => Promise<number>
+  phrasesUpdatePage: (id: number, patch: Partial<PhrasePageInput>) => Promise<void>
+  phrasesRemovePage: (id: number) => Promise<{ ok: boolean; error?: string }>
+  phrasesSetActivePage: (id: number) => Promise<void>
+
+  phrasesList: (pageId?: number) => Promise<PhraseView[]>
+  phrasesCreate: (pageId: number, content: string) => Promise<number>
   phrasesUpdate: (id: number, content: string) => Promise<void>
   phrasesSetEnabled: (id: number, enabled: boolean) => Promise<void>
   phrasesRemove: (id: number) => Promise<void>

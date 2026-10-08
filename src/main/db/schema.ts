@@ -2,7 +2,7 @@
 // 每个迁移必须幂等（IF NOT EXISTS），并在一个事务内执行
 import type { Db } from '../services/db-wrapper'
 
-export const CURRENT_SCHEMA_VERSION = 2
+export const CURRENT_SCHEMA_VERSION = 3
 
 export const MIGRATIONS: Record<number, string[]> = {
   1: [
@@ -81,6 +81,21 @@ export const MIGRATIONS: Record<number, string[]> = {
     `CREATE INDEX IF NOT EXISTS idx_usage_logs_ts ON usage_logs(ts)`,
     `CREATE INDEX IF NOT EXISTS idx_terms_lib ON terms(lib_id)`,
     `CREATE INDEX IF NOT EXISTS idx_terms_lib_source ON terms(lib_id, source_text)`
+  ],
+  // 常用语分页：每个页面各自 8 个槽位（Alt+1~8），活动页决定快捷键实际发送哪一页
+  3: [
+    `CREATE TABLE IF NOT EXISTS phrase_pages (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       name TEXT NOT NULL,
+       note TEXT,
+       sort_order INTEGER DEFAULT 0,
+       is_active INTEGER DEFAULT 0,
+       is_builtin INTEGER DEFAULT 0,
+       updated_at TEXT
+     )`,
+    // SQLite 的 ADD COLUMN 不支持 IF NOT EXISTS，重复执行时的 duplicate column 由 applyMigrations 兜底忽略
+    `ALTER TABLE phrases ADD COLUMN page_id INTEGER`,
+    `CREATE INDEX IF NOT EXISTS idx_phrases_page ON phrases(page_id)`
   ]
 }
 
@@ -94,7 +109,15 @@ export function applyMigrations(db: Db): void {
     const statements = MIGRATIONS[v]
     if (!statements) continue
     const tx = db.transaction(() => {
-      for (const sql of statements) db.exec(sql)
+      for (const sql of statements) {
+        try {
+          db.exec(sql)
+        } catch (e) {
+          // ALTER TABLE ADD COLUMN 没有 IF NOT EXISTS：列已存在时视为幂等，其余错误照常抛出
+          const msg = e instanceof Error ? e.message : String(e)
+          if (!/duplicate column name/i.test(msg)) throw e
+        }
+      }
       db.pragma(`user_version = ${v}`)
     })
     tx()

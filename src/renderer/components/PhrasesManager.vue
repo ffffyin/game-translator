@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import type { PhraseView } from '../../shared/phrases'
+
+const props = defineProps<{ pageId: number | null }>()
 
 const rows = ref<PhraseView[]>([])
 const loadError = ref('')
@@ -14,13 +16,17 @@ const editContent = ref('')
 const confirmId = ref<number | null>(null)
 
 async function load(): Promise<void> {
-  rows.value = await window.api.phrasesList()
+  if (props.pageId == null) {
+    rows.value = []
+    return
+  }
+  rows.value = await window.api.phrasesList(props.pageId)
 }
 
 async function submitAdd(): Promise<void> {
   const content = newContent.value.trim()
-  if (!content) return
-  await window.api.phrasesCreate(content)
+  if (!content || props.pageId == null) return
+  await window.api.phrasesCreate(props.pageId, content)
   adding.value = false
   newContent.value = ''
   await load()
@@ -57,6 +63,17 @@ async function confirmRemove(): Promise<void> {
 }
 
 onMounted(() => load().catch((e) => (loadError.value = String(e))))
+
+// 切换话术页时重新加载该页条目
+watch(
+  () => props.pageId,
+  () => {
+    adding.value = false
+    editingId.value = null
+    confirmId.value = null
+    load().catch((e) => (loadError.value = String(e)))
+  }
+)
 </script>
 
 <template>

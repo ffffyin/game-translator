@@ -258,10 +258,30 @@ export function registerIpc(
     }
   })
 
+  // 常用语分页
+  handle.handle('phrases:listPages', () => phrases.listPages())
+  handle.handle('phrases:createPage', (_e, input: { name: string; note?: string }) =>
+    phrases.createPage(input.name, input.note)
+  )
+  handle.handle('phrases:updatePage', (_e, id: number, patch: { name?: string; note?: string }) => {
+    phrases.updatePage(id, patch)
+    onPhrasesChanged()
+  })
+  handle.handle('phrases:removePage', (_e, id: number) => {
+    const r = phrases.removePage(id)
+    if (r.ok) onPhrasesChanged()
+    return r
+  })
+  // 切换当前页：Alt+1~8 立刻改绑到新页的槽位
+  handle.handle('phrases:setActivePage', (_e, id: number) => {
+    phrases.setActivePage(id)
+    onPhrasesChanged()
+  })
+
   // 常用语
-  handle.handle('phrases:list', () => phrases.list())
-  handle.handle('phrases:create', async (_e, content: string) => {
-    const id = phrases.create(content)
+  handle.handle('phrases:list', (_e, pageId?: number) => phrases.list(pageId))
+  handle.handle('phrases:create', async (_e, pageId: number, content: string) => {
+    const id = phrases.create(content, pageId)
     onPhrasesChanged()
     return id
   })

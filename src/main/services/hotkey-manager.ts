@@ -79,11 +79,12 @@ export class HotkeyManager {
   private phraseKeys = new Set<string>()
 
   // 注册已启用常用语的快捷键（应在功能快捷键注册之后调用）
+  // 多页常用语里只有「当前页」参与注册：不同页共用 Alt+1~8，全部注册会互相冲突
   registerPhraseHotkeys(handlerFor: (p: PhraseRow) => (() => void) | null): {
     registered: number
     failures: PhraseHotkeyFailure[]
   } {
-    const phrases = new PhraseService(this.db).listEnabled()
+    const phrases = new PhraseService(this.db).listEnabledActive()
     const failures: PhraseHotkeyFailure[] = []
     let registered = 0
     for (const p of phrases) {

@@ -14,6 +14,11 @@ const nav = [
     icon: 'M4 6h16M4 12h16M4 18h16'
   },
   {
+    to: '/phrases',
+    label: '常用语',
+    icon: 'M21 14a2 2 0 01-2 2H8l-4 4V5a2 2 0 012-2h13a2 2 0 012 2z'
+  },
+  {
     to: '/quota',
     label: 'AI 额度',
     icon: 'M3 7h18v12H3zM3 11h18'

@@ -21,6 +21,7 @@ function mountNav(attachToBody = false) {
     routes: [
       { path: '/home', component: { template: '<div/>' } },
       { path: '/mode', component: { template: '<div/>' } },
+      { path: '/phrases', component: { template: '<div/>' } },
       { path: '/quota', component: { template: '<div/>' } },
       { path: '/config', component: { template: '<div/>' } },
       { path: '/about', component: { template: '<div/>' } }
@@ -36,17 +37,19 @@ function mountNav(attachToBody = false) {
 describe('SideNav 侧边导航', () => {
   beforeEach(() => vi.useRealTimers())
 
-  it('渲染 5 个导航项，文字为 主页/模式/AI 额度/模型配置/关于软件', () => {
+  it('渲染 6 个导航项，文字为 主页/模式/常用语/AI 额度/模型配置/关于软件', () => {
     const w = mountNav()
     const items = w.findAll('a.nav-item')
-    expect(items).toHaveLength(5)
+    expect(items).toHaveLength(6)
     expect(items.map((i) => i.text().trim())).toEqual([
       '主页',
       '模式',
+      '常用语',
       'AI 额度',
       '模型配置',
       '关于软件'
     ])
+    expect(items[2].attributes('href')).toContain('/phrases')
   })
 
   it('导航文字无下划线（基础态与 hover/focus/active 态都显式去除）', () => {

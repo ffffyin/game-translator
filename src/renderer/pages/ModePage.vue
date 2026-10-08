@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import PageHeader from '../components/PageHeader.vue'
 import TermsManager from '../components/TermsManager.vue'
-import PhrasesManager from '../components/PhrasesManager.vue'
 import { useSettingsStore } from '../stores/settings'
 import { TRANSLATION_STYLES, TOXIC_LEVELS, OCR_ENGINES } from '../../shared/defaults'
 
@@ -68,30 +67,7 @@ const styleNotes: Record<string, string> = {
       </p>
     </div>
 
-    <div class="m-card">
-      <div class="lab">常用语（Alt+1 ~ Alt+8 快速发送）</div>
-      <div class="switches">
-        <label class="switch-row">
-          <input
-            type="checkbox"
-            :checked="s.settings.phraseTranslateBeforeSend === 1"
-            @change="s.update('phraseTranslateBeforeSend', ($event.target as HTMLInputElement).checked ? 1 : 0)"
-          />
-          <span>发送前先翻译（默认开）</span>
-        </label>
-        <label class="switch-row">
-          <input
-            type="checkbox"
-            :checked="s.settings.phraseAutoEnter === 1"
-            @change="s.update('phraseAutoEnter', ($event.target as HTMLInputElement).checked ? 1 : 0)"
-          />
-          <span>粘贴后自动回车发送（默认关）</span>
-        </label>
-      </div>
-      <PhrasesManager />
-    </div>
-
-    <div class="m-card">
+    <div class="m-card wide">
       <div class="lab">通用</div>
       <div class="switches">
         <label class="switch-row">
@@ -201,6 +177,13 @@ const styleNotes: Record<string, string> = {
   flex-direction: column;
   gap: 8px;
   margin: 4px 0 14px;
+}
+/* 通栏卡片里的开关横向排列，避免独占一行显得空旷 */
+.m-card.wide .switches {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px 30px;
+  margin: 6px 0 2px;
 }
 .switch-row {
   display: flex;

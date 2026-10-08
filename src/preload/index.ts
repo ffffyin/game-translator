@@ -97,8 +97,14 @@ const api: ApiContract = {
   termsCheckUpdates: (url) => ipcRenderer.invoke('terms:checkUpdates', url),
   termsApplyUpdates: (url) => ipcRenderer.invoke('terms:applyUpdates', url),
 
-  phrasesList: () => ipcRenderer.invoke('phrases:list'),
-  phrasesCreate: (content) => ipcRenderer.invoke('phrases:create', content),
+  phrasesListPages: () => ipcRenderer.invoke('phrases:listPages'),
+  phrasesCreatePage: (input) => ipcRenderer.invoke('phrases:createPage', input),
+  phrasesUpdatePage: (id, patch) => ipcRenderer.invoke('phrases:updatePage', id, patch),
+  phrasesRemovePage: (id) => ipcRenderer.invoke('phrases:removePage', id),
+  phrasesSetActivePage: (id) => ipcRenderer.invoke('phrases:setActivePage', id),
+
+  phrasesList: (pageId) => ipcRenderer.invoke('phrases:list', pageId),
+  phrasesCreate: (pageId, content) => ipcRenderer.invoke('phrases:create', pageId, content),
   phrasesUpdate: (id, content) => ipcRenderer.invoke('phrases:update', id, content),
   phrasesSetEnabled: (id, enabled) => ipcRenderer.invoke('phrases:setEnabled', id, enabled),
   phrasesRemove: (id) => ipcRenderer.invoke('phrases:remove', id),

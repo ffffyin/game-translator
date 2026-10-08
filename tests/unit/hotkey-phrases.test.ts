@@ -29,7 +29,7 @@ vi.mock('electron', () => ({
 import { Db } from '../../src/main/services/db-wrapper'
 import { applyMigrations } from '../../src/main/db/schema'
 import { HotkeyManager } from '../../src/main/services/hotkey-manager'
-import { seedDefaultPhrases } from '../../src/main/services/phrases'
+import { PhraseService, seedDefaultPhrases } from '../../src/main/services/phrases'
 import { join } from 'path'
 import { tmpdir } from 'os'
 
@@ -80,6 +80,32 @@ describe('常用语快捷键注册与冲突检测', () => {
     const r = hm.registerPhraseHotkeys(noop)
     expect(r.registered).toBe(0)
     expect(r.failures).toHaveLength(8)
+  })
+
+  it('多页：只注册当前页的 8 条，换页后注册的是新页条目', () => {
+    const { db, hm } = setup()
+    const svc = new PhraseService(db)
+    expect(svc.listPages()).toHaveLength(5)
+
+    const seen: string[] = []
+    const first = hm.registerPhraseHotkeys((p) => {
+      seen.push(p.content)
+      return () => {}
+    })
+    expect(first.registered).toBe(8)
+    expect(seen).toContain('打得好！')
+
+    // 切到 Dota2 页后重注册：键位仍是 Alt+1~8，但内容换成该页
+    const dota = svc.listPages().find((p) => p.name === 'Dota2')!
+    svc.setActivePage(dota.id)
+    seen.length = 0
+    const r = hm.refreshPhraseHotkeys((p) => {
+      seen.push(p.content)
+      return () => {}
+    })
+    expect(r.registered).toBe(8)
+    expect(seen).toContain('中路不见了，注意')
+    expect(seen).not.toContain('打得好！')
   })
 
   it('refresh：先解绑旧常用语键再重新注册', () => {

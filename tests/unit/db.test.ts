@@ -17,6 +17,7 @@ const EXPECTED_TABLES = [
   'term_libraries',
   'terms',
   'phrases',
+  'phrase_pages',
   'hotkeys',
   'usage_logs',
   'app_meta'
@@ -41,7 +42,7 @@ describe('数据库迁移', () => {
     expect(db.prepare('PRAGMA user_version').get().user_version).toBe(CURRENT_SCHEMA_VERSION)
   })
 
-  it('创建全部 8 张表', () => {
+  it('创建全部 9 张表', () => {
     const tables = listTables(db)
     for (const t of EXPECTED_TABLES) expect(tables).toContain(t)
   })
