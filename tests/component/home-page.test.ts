@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { readFileSync } from 'fs'
 import { nextTick } from 'vue'
 import HomePage from '../../src/renderer/pages/HomePage.vue'
 import { createPinia, setActivePinia } from 'pinia'
@@ -49,6 +50,43 @@ describe('HomePage 主页', () => {
     const w = mountHomePage()
     await vi.waitFor(() => expect(w.text()).toContain('Ctrl+Alt+4'))
     expect(w.findAll('.hk-row')).toHaveLength(4)
+  })
+
+  it('快捷键行按设计稿改版：图标 + 动作名 + 说明 + 右侧按键徽章', async () => {
+    installApi()
+    const w = mountHomePage()
+    await vi.waitFor(() => expect(w.text()).toContain('Ctrl+Alt+4'))
+
+    const rows = w.findAll('.hk-row')
+    // 每行都有图标块
+    for (const r of rows) {
+      expect(r.find('.ic svg').exists()).toBe(true)
+      expect(r.find('.mid .nm').text().length).toBeGreaterThan(0)
+      expect(r.find('.mid .ds').text().length).toBeGreaterThan(0)
+      expect(r.find('kbd').exists()).toBe(true)
+    }
+
+    expect(rows[0].find('.nm').text()).toBe('全选翻译并自动替换')
+    expect(rows[0].find('.ds').text()).toBe('取当前窗口全部文字，译文直接替换原文')
+    expect(rows[1].find('.nm').text()).toBe('全选翻译 · 进入剪贴板')
+    expect(rows[1].find('.ds').text()).toBe('原文不动，译文复制到剪贴板')
+    expect(rows[2].find('.nm').text()).toBe('截图区域翻译')
+    expect(rows[3].find('.nm').text()).toBe('截图全屏翻译')
+    expect(rows[3].find('kbd').text()).toBe('Ctrl+Alt+4')
+    // 卡片标题文案与设计稿一致
+    expect(w.text()).toContain('点击右侧按键即可修改，支持 Ctrl / Alt / Shift 组合键')
+  })
+
+  it('快捷键卡样式：列表卡片化 + 等宽键位徽章（设计稿 .hk-list/.kbd）', () => {
+    const styleBlock = readFileSync('src/renderer/pages/HomePage.vue', 'utf8').match(
+      /<style[^>]*>([\s\S]*?)<\/style>/
+    )![1]
+    expect(styleBlock).toMatch(/\.hk-list\s*\{[^}]*display:\s*grid/)
+    expect(styleBlock).toMatch(/\.hk-row\s*\{[^}]*background:\s*var\(--card2\)/)
+    expect(styleBlock).toMatch(/\.hk-row\s*\{[^}]*border-radius:\s*10px/)
+    expect(styleBlock).toMatch(/\.hk-row \.ic\s*\{[^}]*background:\s*var\(--accent-soft\)/)
+    expect(styleBlock).toMatch(/kbd\s*\{[^}]*font-family:\s*ui-monospace/)
+    expect(styleBlock).toMatch(/kbd\s*\{[^}]*color:\s*var\(--accent\)/)
   })
 
   it('点击快捷键打开改键弹层，ESC/取消可关闭', async () => {

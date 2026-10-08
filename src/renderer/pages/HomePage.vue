@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import PageHeader from '../components/PageHeader.vue'
 import HotkeyModal from '../components/HotkeyModal.vue'
+import HotkeyIcon from '../components/HotkeyIcon.vue'
 import { useSettingsStore } from '../stores/settings'
 import {
   LANGUAGES,
@@ -10,7 +11,7 @@ import {
 } from '../../shared/defaults'
 import type { LibView } from '../../shared/terms'
 import { ACCENT_PRESETS } from '../../shared/colors'
-import { FUNCTION_ACTIONS } from '../../shared/hotkeys'
+import { FUNCTION_ACTIONS, findAction } from '../../shared/hotkeys'
 import type { HotkeyEntry } from '../../shared/hotkeys'
 
 const s = useSettingsStore()
@@ -55,11 +56,19 @@ const modalShow = ref(false)
 const modalAction = ref<{ code: string; label: string }>({ code: '', label: '' })
 
 function actionLabel(code: string): string {
-  return FUNCTION_ACTIONS.find((a) => a.actionCode === code)?.label ?? code
+  return findAction(code)?.label ?? code
 }
 
-function openModal(row: HotkeyEntry) {
-  modalAction.value = { code: row.action_code, label: actionLabel(row.action_code) }
+// 快捷键列表（过滤掉常用语槽位，只展示 4 个功能动作）
+const actionRows = computed(() =>
+  FUNCTION_ACTIONS.map((a) => ({
+    action: a,
+    entry: hotkeys.value.find((h) => h.action_code === a.actionCode)
+  })).filter((r) => r.entry)
+)
+
+function openModal(row: HotkeyEntry, code: string) {
+  modalAction.value = { code, label: actionLabel(code) }
   modalShow.value = true
 }
 
@@ -167,10 +176,18 @@ onMounted(() => {
     </div>
 
     <div class="m-card wide">
-      <div class="lab">快捷键（点击右侧按键可修改，支持组合键）</div>
-      <div v-for="h in hotkeys.filter((x) => !x.action_code.startsWith('phrase_'))" :key="h.action_code" class="hk-row">
-        <span>{{ actionLabel(h.action_code) }}</span>
-        <kbd @click="openModal(h)">{{ h.accelerators }}</kbd>
+      <div class="lab">快捷键（点击右侧按键即可修改，支持 Ctrl / Alt / Shift 组合键）</div>
+      <div class="hk-list">
+        <div v-for="r in actionRows" :key="r.action.actionCode" class="hk-row">
+          <div class="ic">
+            <HotkeyIcon :code="r.action.actionCode" />
+          </div>
+          <div class="mid">
+            <div class="nm">{{ r.action.label }}</div>
+            <div class="ds">{{ r.action.desc }}</div>
+          </div>
+          <kbd @click="openModal(r.entry!, r.action.actionCode)">{{ r.entry!.accelerators }}</kbd>
+        </div>
       </div>
     </div>
   </div>
@@ -274,30 +291,62 @@ onMounted(() => {
   gap: 9px;
   margin-top: 14px;
 }
+.hk-list {
+  display: grid;
+  gap: 9px;
+}
 .hk-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 9px 2px;
-  border-bottom: 1px solid var(--line);
-  font-size: 13px;
-  color: var(--txt2);
-}
-.hk-row:last-child {
-  border-bottom: none;
-}
-kbd {
+  gap: 13px;
   background: var(--card2);
   border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 3px 10px;
-  font-size: 12px;
+  border-radius: 10px;
+  padding: 11px 15px;
+}
+.hk-row .ic {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.hk-row .ic svg {
+  width: 16px;
+  height: 16px;
+  stroke: var(--accent);
+}
+.hk-row .mid {
+  flex: 1;
+  min-width: 0;
+}
+.hk-row .nm {
+  font-size: 12.8px;
   color: var(--txt);
-  font-family: inherit;
+  line-height: 1.5;
+}
+.hk-row .ds {
+  font-size: 11px;
+  color: var(--txt3);
+  line-height: 1.5;
+}
+kbd {
+  font-family: ui-monospace, Consolas, 'Courier New', monospace;
+  font-size: 11.5px;
+  background: var(--side);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 7px;
+  padding: 5px 11px;
+  color: var(--accent);
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 kbd:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--accent-line);
 }
 </style>
