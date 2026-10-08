@@ -26,6 +26,7 @@ import {
   integrityOk
 } from './services/backup'
 import { APP_VERSION } from '../shared/version'
+import { isSafeExternalUrl } from '../shared/links'
 import { initLogger, log, errToText } from './services/logger'
 
 // 自定义协议特权必须在 app ready 之前注册
@@ -76,7 +77,8 @@ function createWindow(): BrowserWindow {
   win.on('unmaximize', pushMaximized)
 
   win.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    if (isSafeExternalUrl(details.url)) void shell.openExternal(details.url)
+    else log('WARN', `已拦截非法的 window.open 外链：${details.url}`)
     return { action: 'deny' }
   })
 
