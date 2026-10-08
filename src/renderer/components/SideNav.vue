@@ -93,18 +93,22 @@ const nav = [
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 11px;
+  gap: 11px;
+  padding: 10px 11px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--txt2);
+  text-decoration: none;
 }
 .nav-item svg {
-  width: 17px;
-  height: 17px;
+  width: 19px;
+  height: 19px;
 }
-.nav-item:hover {
+.nav-item:hover,
+.nav-item:focus,
+.nav-item:active {
   color: var(--txt);
+  text-decoration: none;
 }
 .nav-item.on {
   background: var(--accent-soft);
