@@ -24,6 +24,15 @@ export interface ResultOverlayHandle {
 const WIN_W = 430
 const WIN_H = 520
 
+// 同一时刻只允许存在一个结果窗：打开新的前先关掉旧的，
+// 否则每次截图翻译都会残留一个置顶窗口（且闭包持有整张 PNG）
+let current: ResultOverlayHandle | null = null
+
+export function closeResultOverlay(): void {
+  current?.close()
+  current = null
+}
+
 function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(v, max))
 }
@@ -56,6 +65,7 @@ function positionNear(anchor: AnchorRect, displayId: number): { x: number; y: nu
 }
 
 export function openResultOverlay(args: OpenResultArgs): ResultOverlayHandle {
+  if (current) current.close()
   const pos = positionNear(args.anchor, args.displayId)
   const win = new BrowserWindow({
     x: pos.x,
@@ -100,7 +110,7 @@ export function openResultOverlay(args: OpenResultArgs): ResultOverlayHandle {
   ipc.handle('result:retranslate', async (_e, req: RetranslateRequest) => {
     try {
       const d = await args.onRetranslate(req)
-      win.webContents.send('result:data', d)
+      if (!win.isDestroyed()) win.webContents.send('result:data', d)
       return { ok: true }
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : '重新翻译失败' }
@@ -118,11 +128,15 @@ export function openResultOverlay(args: OpenResultArgs): ResultOverlayHandle {
   // 点击窗外自动关闭，置顶锁定后保留；
   // 打开后的前 1.5 秒不启用，避免创建瞬间的焦点抖动导致秒关
   let blurArmed = false
-  setTimeout(() => {
+  const armTimer = setTimeout(() => {
     blurArmed = true
   }, 1500)
   win.on('blur', () => {
     if (blurArmed && !pinned && !win.isDestroyed()) win.close()
+  })
+  win.on('closed', () => {
+    clearTimeout(armTimer)
+    if (current === handle) current = null
   })
 
   win.webContents.on('did-fail-load', (_e, code, desc, url) => {
@@ -138,13 +152,16 @@ export function openResultOverlay(args: OpenResultArgs): ResultOverlayHandle {
     win.loadFile(join(__dirname, '../renderer/result.html'))
   }
 
-  return {
+  const handle: ResultOverlayHandle = {
     setData: (d) => {
       queuedData = d
       flushData()
     },
     close: () => {
       if (!win.isDestroyed()) win.close()
+      if (current === handle) current = null
     }
   }
+  current = handle
+  return handle
 }
