@@ -71,8 +71,8 @@ export async function translateOcrLines(opts: {
     '输出行数必须与输入完全一致、顺序一一对应；不要合并、拆分、新增行，也不要加行号或解释。'
   const t0 = Date.now()
   const messages = [
-    { role: 'system', content: system },
-    { role: 'user', content: lines.map((l, i) => `${i + 1}. ${l}`).join('\n') }
+    { role: 'system' as const, content: system },
+    { role: 'user' as const, content: lines.map((l, i) => `${i + 1}. ${l}`).join('\n') }
   ]
   try {
     writeFileSync(
