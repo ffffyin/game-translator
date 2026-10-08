@@ -227,13 +227,20 @@ app.whenReady().then(async () => {
     if (r.failures.length) console.warn('常用语快捷键注册失败：', r.failures)
   }
 
-  registerIpc(mainWindow, db, root, refreshPhraseHotkeys)
-  tray = createTray(mainWindow)
+  // 窗口可能被销毁重建（macOS activate）：重建后必须重新注册 IPC，
+  // 并让快捷键/常用语闭包里的 ctx.win 指向新窗口
+  const ctx: ActionContext = { win: mainWindow, db }
+  const attachMainWindow = (win: BrowserWindow): void => {
+    mainWindow = win
+    ctx.win = win
+    registerIpc(win, db, root, refreshPhraseHotkeys)
+  }
+  attachMainWindow(mainWindow)
+  tray = createTray(() => mainWindow)
 
   // 全局快捷键：种子 → 注册已实现动作
   hotkeyManager = new HotkeyManager(db)
   hotkeyManager.seed()
-  const ctx: ActionContext = { win: mainWindow, db }
   const failures = hotkeyManager.registerAll({
     translate_replace: () => void actionTranslateReplace(ctx),
     translate_clipboard: () => void actionTranslateClipboard(ctx),
@@ -248,7 +255,7 @@ app.whenReady().then(async () => {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      mainWindow = createWindow()
+      attachMainWindow(createWindow())
     }
     mainWindow?.show()
   })
@@ -264,6 +271,8 @@ app.whenReady().then(async () => {
 app.on('before-quit', () => {
   isQuitting = true
   hotkeyManager?.unregisterAll()
+  tray?.destroy()
+  tray = null
   closeDb()
 })
 

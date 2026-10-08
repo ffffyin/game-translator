@@ -28,7 +28,7 @@ const m = vi.hoisted(() => {
       }),
       createEmpty: vi.fn(() => ({ path: '', isEmpty: () => true }))
     },
-    app: { getAppPath: () => process.cwd(), exit: vi.fn() }
+    app: { getAppPath: () => process.cwd(), exit: vi.fn(), quit: vi.fn() }
   }
 })
 
@@ -42,25 +42,28 @@ vi.mock('electron', () => ({
 
 import { createTray } from '../../src/main/tray'
 
-const fakeWin = { show: vi.fn(), focus: vi.fn() }
+const fakeWin = { show: vi.fn(), focus: vi.fn(), isDestroyed: vi.fn(() => false) }
 
 beforeEach(() => {
   m.trayInstances.length = 0
   m.images.length = 0
   fakeWin.show.mockClear()
   fakeWin.focus.mockClear()
+  fakeWin.isDestroyed.mockReturnValue(false)
+  m.app.quit.mockClear()
+  m.app.exit.mockClear()
 })
 
 describe('createTray 系统托盘', () => {
   it('开发环境：resourcesPath 无图标时回落到 build/icon.ico，托盘拿到非空图标', () => {
-    const tray = createTray(fakeWin as never)
+    const tray = createTray(() => fakeWin)
     const used = (tray as unknown as { image: { path: string; isEmpty: () => boolean } }).image
     expect(used.isEmpty()).toBe(false)
     expect(used.path.replace(/\\/g, '/')).toContain('build/icon.ico')
   })
 
   it('设置“游戏翻译助手”提示与右键菜单', () => {
-    const tray = createTray(fakeWin as never) as unknown as {
+    const tray = createTray(() => fakeWin) as unknown as {
       setToolTip: ReturnType<typeof vi.fn>
       setContextMenu: ReturnType<typeof vi.fn>
     }
@@ -69,7 +72,7 @@ describe('createTray 系统托盘', () => {
   })
 
   it('左键点击托盘：显示并聚焦主窗口', () => {
-    const tray = createTray(fakeWin as never) as unknown as {
+    const tray = createTray(() => fakeWin) as unknown as {
       handlers: { click?: () => void }
     }
     tray.handlers.click?.()
@@ -77,12 +80,38 @@ describe('createTray 系统托盘', () => {
     expect(fakeWin.focus).toHaveBeenCalled()
   })
 
+  it('主窗口已销毁时不操作窗口，不抛异常', () => {
+    fakeWin.isDestroyed.mockReturnValue(true)
+    const tray = createTray(() => fakeWin) as unknown as {
+      handlers: { click?: () => void }
+    }
+    expect(() => tray.handlers.click?.()).not.toThrow()
+    expect(fakeWin.show).not.toHaveBeenCalled()
+  })
+
+  it('取不到窗口时静默返回', () => {
+    const tray = createTray(() => null) as unknown as { handlers: { click?: () => void } }
+    expect(() => tray.handlers.click?.()).not.toThrow()
+  })
+
+  it('退出菜单走 app.quit()，保证 before-quit 清理能执行', () => {
+    createTray(() => fakeWin)
+    const tpl = (m.Menu.buildFromTemplate as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0] as Array<{
+      label?: string
+      click?: () => void
+    }>
+    const quit = tpl.find((i) => i.label === '退出')!
+    quit.click!()
+    expect(m.app.quit).toHaveBeenCalled()
+    expect(m.app.exit).not.toHaveBeenCalled()
+  })
+
   it('所有候选路径都不存在：使用空图标兜底，不抛异常', async () => {
     vi.resetModules()
     vi.doMock('fs', () => ({ existsSync: () => false }))
     const { createTray: makeTray } = await import('../../src/main/tray')
-    expect(() => makeTray(fakeWin as never)).not.toThrow()
-    const tray = makeTray(fakeWin as never) as unknown as { image: { isEmpty: () => boolean } }
+    expect(() => makeTray(() => fakeWin)).not.toThrow()
+    const tray = makeTray(() => fakeWin) as unknown as { image: { isEmpty: () => boolean } }
     expect(tray.image.isEmpty()).toBe(true)
     vi.doUnmock('fs')
     vi.resetModules()

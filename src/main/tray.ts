@@ -1,4 +1,4 @@
-import { app, Tray, Menu, nativeImage, BrowserWindow } from 'electron'
+import { app, Tray, Menu, nativeImage } from 'electron'
 import { join } from 'path'
 import { existsSync } from 'fs'
 
@@ -17,31 +17,33 @@ function resolveTrayIcon() {
   return nativeImage.createEmpty()
 }
 
-export function createTray(win: BrowserWindow): Tray {
+// getWindow 用取值函数传入：主窗口可能被销毁重建（macOS activate），
+// 直接持有实例会在重建后操作已销毁的窗口
+export function createTray(getWindow: () => unknown): Tray {
   const icon = resolveTrayIcon()
   const tray = new Tray(icon)
   tray.setToolTip('游戏翻译助手')
 
+  const showWindow = (): void => {
+    const win = getWindow() as { isDestroyed?: () => boolean; show?: () => void; focus?: () => void } | null
+    if (!win) return
+    if (typeof win.isDestroyed === 'function' && win.isDestroyed()) return
+    win.show?.()
+    win.focus?.()
+  }
+
   const menu = Menu.buildFromTemplate([
-    {
-      label: '打开主窗口',
-      click: () => {
-        win.show()
-        win.focus()
-      }
-    },
+    { label: '打开主窗口', click: showWindow },
     { type: 'separator' },
     {
       label: '退出',
       click: () => {
-        app.exit(0)
+        // 走 app.quit() 而不是 app.exit(0)：before-quit 里的注销快捷键/关库才会执行
+        app.quit()
       }
     }
   ])
   tray.setContextMenu(menu)
-  tray.on('click', () => {
-    win.show()
-    win.focus()
-  })
+  tray.on('click', showWindow)
   return tray
 }
