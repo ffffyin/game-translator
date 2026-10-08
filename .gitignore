@@ -4,6 +4,8 @@ node_modules/
 # 构建产物
 out/
 dist/
+# 任意自定义输出目录（electron-builder -c.directories.output=dist-xxx）
+dist*/
 coverage/
 
 # 日志与临时文件

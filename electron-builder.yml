@@ -9,6 +9,9 @@ files:
   - '!tests/*'
   - '!coverage/*'
   - '!scripts/*'
+  # 任何历史构建产物都不允许被打进包（曾出现 dist 被嵌套进 app.asar 的情况）
+  - '!dist*{,/**/*}'
+  - '!releases{,/**/*}'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!vitest.config.{js,ts,mjs,cjs}'
   - '!tsconfig*.json'

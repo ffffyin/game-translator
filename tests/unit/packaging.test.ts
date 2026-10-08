@@ -33,6 +33,8 @@ describe('打包范围（安装包不得携带任何本机数据与开发文件�
       '!tests/*',
       '!coverage/*',
       '!scripts/*',
+      '!dist*{,/**/*}',
+      '!releases{,/**/*}',
       '!tsconfig*.json',
       '!*.tsbuildinfo',
       '!vitest.config.{js,ts,mjs,cjs}',
