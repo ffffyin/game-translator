@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import AboutPage from '../../src/renderer/pages/AboutPage.vue'
 import { APP_VERSION } from '../../src/shared/version'
+import { GITHUB_URL, QQ_NUMBER } from '../../src/shared/links'
 
 function installApi() {
   const api = {
@@ -19,7 +20,8 @@ function installApi() {
       { name: 'translator-manual-x.db', mtime: new Date().toISOString(), size: 20480 }
     ]),
     backupRestore: vi.fn(async () => undefined),
-    resetToDefaults: vi.fn(async () => ({ ok: true, removed: ['translator.db'] }))
+    resetToDefaults: vi.fn(async () => ({ ok: true, removed: ['translator.db'] })),
+    openExternal: vi.fn(async () => true)
   }
   ;(window as unknown as { api: typeof api }).api = api
   return api
@@ -41,6 +43,32 @@ describe('AboutPage 关于页', () => {
     const w = await mountPage()
     expect(w.text()).toContain('fygod')
     expect(w.text()).toContain(APP_VERSION)
+  })
+
+  it('展示 GitHub 地址与 QQ 号', async () => {
+    installApi()
+    const w = await mountPage()
+    expect(w.text()).toContain('github.com/ffffyin')
+    expect(w.text()).toContain('316606176')
+    expect(w.findAll('.contact-row')).toHaveLength(2)
+  })
+
+  it('点击 GitHub 行用系统浏览器打开主页', async () => {
+    const api = installApi()
+    const w = await mountPage()
+    await w.findAll('.contact-row')[0].trigger('click')
+    await vi.waitFor(() => expect(api.openExternal).toHaveBeenCalledWith(GITHUB_URL))
+  })
+
+  it('点击 QQ 行复制号码并给出反馈', async () => {
+    installApi()
+    const writeText = vi.fn(async () => undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const w = await mountPage()
+
+    await w.findAll('.contact-row')[1].trigger('click')
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith(QQ_NUMBER))
+    expect(w.findAll('.contact-row')[1].text()).toContain('已复制')
   })
 
   it('显示数据目录且可点击打开', async () => {

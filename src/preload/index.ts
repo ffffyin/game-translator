@@ -24,6 +24,7 @@ const api: ApiContract = {
   settingsSet: (key, value) => ipcRenderer.invoke('settings:set', key, value),
   openDataDir: () => ipcRenderer.invoke('app:openDataDir'),
   getDataDir: () => ipcRenderer.invoke('app:getDataDir'),
+  openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
   backupList: () => ipcRenderer.invoke('backup:list'),
   backupCreate: () => ipcRenderer.invoke('backup:create'),
   backupRestore: (name: string) => ipcRenderer.invoke('backup:restore', name),

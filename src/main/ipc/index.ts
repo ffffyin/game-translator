@@ -18,6 +18,7 @@ import { translateText } from '../services/translate'
 import { resolveGlossary } from '../services/term-match'
 import { listBackups, createBackup, restoreBackup } from '../services/backup'
 import { wipeDatabaseFiles } from '../services/install-guard'
+import { isSafeExternalUrl } from '../../shared/links'
 import type { NotifyPayload } from '../../shared/api-contract'
 import type { ModelConfigInput } from '../../shared/model'
 
@@ -69,6 +70,12 @@ export function registerIpc(
     return true
   })
   handle.handle('app:getDataDir', () => root)
+  // 用系统浏览器打开外链（只允许 http/https）
+  handle.handle('app:openExternal', async (_e, url: string) => {
+    if (!isSafeExternalUrl(url)) return false
+    await shell.openExternal(url)
+    return true
+  })
 
   // 备份与恢复
   handle.handle('backup:list', () => listBackups(root))

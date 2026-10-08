@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import PageHeader from '../components/PageHeader.vue'
 import { APP_VERSION } from '../../shared/version'
+import { AUTHOR_NAME, GITHUB_HANDLE, GITHUB_URL, QQ_NUMBER } from '../../shared/links'
 import type { LibView } from '../../shared/terms'
 import type { BackupFile } from '../../shared/api-contract'
 
@@ -18,6 +19,29 @@ async function doReset(): Promise<void> {
   const r = await window.api.resetToDefaults()
   resetConfirm.value = false
   resetMsg.value = r.ok ? '已清空本机数据，正在重启…' : (r.message ?? '清空失败')
+}
+
+const author = AUTHOR_NAME
+const githubHandle = GITHUB_HANDLE
+const qqNumber = QQ_NUMBER
+const qqCopied = ref(false)
+let qqTimer: ReturnType<typeof setTimeout> | null = null
+
+async function openGithub(): Promise<void> {
+  await window.api.openExternal(GITHUB_URL)
+}
+
+async function copyQq(): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(qqNumber)
+  } catch {
+    // 剪贴板不可用时仍把号码显示出来，用户可手动复制
+  }
+  qqCopied.value = true
+  if (qqTimer) clearTimeout(qqTimer)
+  qqTimer = setTimeout(() => {
+    qqCopied.value = false
+  }, 2200)
 }
 
 async function refreshBackups(): Promise<void> {
@@ -62,7 +86,30 @@ onMounted(async () => {
       <h4>游戏翻译助手</h4>
       <p class="en">Game Translator</p>
       <p class="ver">版本 v{{ APP_VERSION }}</p>
-      <p class="author">作者：fygod</p>
+      <p class="author">作者：{{ author }}</p>
+
+      <div class="contact">
+        <button class="contact-row" type="button" title="在浏览器中打开 GitHub 主页" @click="openGithub">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 2a10 10 0 00-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.95 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 015 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.85-2.34 4.7-4.57 4.95.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0012 2z"
+            />
+          </svg>
+          <span class="k">GitHub</span>
+          <code>{{ githubHandle }}</code>
+        </button>
+
+        <button class="contact-row" type="button" title="复制 QQ 号" @click="copyQq">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 3c-2.9 0-5.2 2.2-5.2 5.1 0 .5.05 1 .13 1.45-.6.9-1.23 2.2-1.23 3.2 0 .5.2.83.47 1-.15.6-.5 1.5-1 2.3-.35.6-.1 1.35.6 1.5 1 .2 2.1-.1 2.9-.6.85.4 1.9.65 3.33.65s2.48-.25 3.33-.65c.8.5 1.9.8 2.9.6.7-.15.95-.9.6-1.5-.5-.8-.85-1.7-1-2.3.27-.17.47-.5.47-1 0-1-.63-2.3-1.23-3.2.08-.45.13-.95.13-1.45C17.2 5.2 14.9 3 12 3z"
+            />
+          </svg>
+          <span class="k">QQ</span>
+          <code>{{ qqCopied ? '已复制 ' + qqNumber : qqNumber }}</code>
+        </button>
+      </div>
+
       <button class="m-btn" :disabled="checking" @click="checkAppUpdate">
         {{ checking ? '检查中…' : '检查软件更新' }}
       </button>
@@ -182,6 +229,50 @@ h4 {
   font-size: 13px;
   color: var(--accent);
   font-weight: 600;
+}
+.contact {
+  margin: 16px 0 4px;
+  display: grid;
+  gap: 8px;
+  text-align: left;
+}
+.contact-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 9px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--txt2);
+}
+.contact-row:hover {
+  border-color: var(--accent-line);
+}
+.contact-row:hover code {
+  color: var(--accent);
+}
+.contact-row svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  fill: var(--txt2);
+}
+.contact-row .k {
+  font-size: 12px;
+  color: var(--txt2);
+  flex-shrink: 0;
+}
+.contact-row code {
+  margin-left: auto;
+  font-family: ui-monospace, Consolas, 'Courier New', monospace;
+  font-size: 11.5px;
+  color: var(--txt3);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .txt {
   font-size: 12.5px;

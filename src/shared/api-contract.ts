@@ -66,6 +66,7 @@ export interface ApiContract {  ping: () => Promise<string>
   settingsSet: (key: string, value: unknown) => Promise<AppSettings>
   openDataDir: () => Promise<boolean>
   getDataDir: () => Promise<string>
+  openExternal: (url: string) => Promise<boolean>
   backupList: () => Promise<BackupFile[]>
   backupCreate: () => Promise<BackupFile[]>
   backupRestore: (name: string) => Promise<void>
