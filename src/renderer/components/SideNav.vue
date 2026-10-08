@@ -106,7 +106,10 @@ const nav = [
 }
 .nav-item:hover,
 .nav-item:focus,
-.nav-item:active {
+.nav-item:focus-visible,
+.nav-item:active,
+.nav-item:visited,
+.nav-item.on {
   color: var(--txt);
   text-decoration: none;
 }

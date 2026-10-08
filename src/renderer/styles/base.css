@@ -35,6 +35,17 @@ button {
   font-family: inherit;
 }
 
+/* 全局兜底：作者样式优先级高于浏览器默认样式，
+   这里统一去掉所有 <a> 的下划线，避免任何一处遗漏（侧边导航等） */
+a,
+a:link,
+a:visited,
+a:hover,
+a:focus,
+a:active {
+  text-decoration: none;
+}
+
 /* 通用组件类（跨页面复用） */
 .m-card {
   background: var(--card);
