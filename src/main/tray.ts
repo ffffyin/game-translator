@@ -1,16 +1,24 @@
 import { app, Tray, Menu, nativeImage, BrowserWindow } from 'electron'
 import { join } from 'path'
+import { existsSync } from 'fs'
+
+// 解析托盘图标：打包后位于 resources/icon.ico；开发环境用项目 build/icon.ico
+function resolveTrayIcon() {
+  const candidates = [
+    process.resourcesPath ? join(process.resourcesPath, 'icon.ico') : '',
+    join(app.getAppPath(), 'build', 'icon.ico')
+  ]
+  for (const p of candidates) {
+    if (existsSync(p)) {
+      const img = nativeImage.createFromPath(p)
+      if (!img.isEmpty()) return img
+    }
+  }
+  return nativeImage.createEmpty()
+}
 
 export function createTray(win: BrowserWindow): Tray {
-  // 优先使用 resources 图标，否则用一个空 nativeImage 兜底
-  let icon
-  try {
-    icon = nativeImage.createFromPath(join(process.resourcesPath, 'icon.ico'))
-    if (icon.isEmpty()) icon = nativeImage.createEmpty()
-  } catch {
-    icon = nativeImage.createEmpty()
-  }
-
+  const icon = resolveTrayIcon()
   const tray = new Tray(icon)
   tray.setToolTip('游戏翻译助手')
 

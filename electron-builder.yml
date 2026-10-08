@@ -22,6 +22,8 @@ nsis:
   createDesktopShortcut: always
   allowToChangeInstallationDirectory: true
 extraResources:
+  - from: build/icon.ico
+    to: icon.ico
   - from: resources/tessdata
     to: tessdata
   - from: resources/ocr
