@@ -67,9 +67,17 @@ onMounted(async () => {
     <TitleBar />
     <div class="app-shell">
       <!-- 未登录不渲染侧边栏：登录后才有权进入任何功能页 -->
-      <SideNav v-if="auth.signedIn" />
+      <SideNav v-if="auth.signedIn && !booting" />
       <main class="content" :class="{ auth: !auth.signedIn }">
-        <router-view v-slot="{ Component }">
+        <!-- 启动期登录态未知，先给一个明确的加载态。
+             没有它的话，cloudStatus 握手慢（断网时要等超时）会先显示几秒纯背景，
+             看起来跟黑屏/卡死一模一样。 -->
+        <div v-if="booting" class="booting">
+          <div class="booting-bar"><i /></div>
+          <p class="booting-text">正在检查登录状态…</p>
+          <p class="booting-hint">首次使用或长时间未登录时，可能需要几秒钟</p>
+        </div>
+        <router-view v-else v-slot="{ Component }">
           <component :is="Component" />
         </router-view>
       </main>
@@ -99,5 +107,46 @@ onMounted(async () => {
   padding: 0;
   display: flex;
   flex-direction: column;
+}
+.booting {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.booting-bar {
+  width: 180px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--card2);
+  overflow: hidden;
+}
+.booting-bar i {
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  animation: booting-slide 1.1s ease-in-out infinite;
+}
+@keyframes booting-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+.booting-text {
+  margin: 0;
+  color: var(--txt2);
+  font-size: 13px;
+}
+.booting-hint {
+  margin: 0;
+  color: var(--txt3);
+  font-size: 12px;
 }
 </style>
