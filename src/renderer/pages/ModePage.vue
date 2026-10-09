@@ -19,7 +19,7 @@ const styleNotes: Record<string, string> = {
 
   <div class="grid">
     <div class="m-card">
-      <div class="lab">翻译风格</div>
+      <div class="lab">聊天翻译风格</div>
       <button
         v-for="t in TRANSLATION_STYLES"
         :key="t.value"
@@ -47,6 +47,11 @@ const styleNotes: Record<string, string> = {
           忠实原文：只会升级用词与语气，不会凭空编造原文没有的指控；仅针对游戏内表现开喷。
         </p>
       </div>
+
+      <p class="tip">
+        这里选的是<span class="em">聊天方向</span>的风格——替换 / 复制翻译，也就是你要发出去的话。<br />
+        画面（截图）翻译的风格在「主页」的画面翻译方向里单独设置，两边互不影响。
+      </p>
     </div>
 
     <div class="m-card">
@@ -171,6 +176,11 @@ const styleNotes: Record<string, string> = {
   font-size: 11px;
   line-height: 1.6;
   color: var(--txt3);
+}
+/* 说明文字里的关键限定词提亮，避免用户略过「聊天方向」四个字 */
+.tip .em {
+  color: var(--txt2);
+  font-weight: 600;
 }
 .switches {
   display: flex;

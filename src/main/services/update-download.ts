@@ -163,6 +163,8 @@ export interface DownloadUpdateOptions {
 export class UpdateDownloader {
   private current: ClientRequest | null = null
   private canceled = false
+  /** 由 pipe() 挂上的兜底结算函数，见 cancel() 注释 */
+  private cancelNow: (() => void) | null = null
 
   /** 取消当前下载。没有正在进行的下载时什么都不做。 */
   cancel(): void {
@@ -172,6 +174,12 @@ export class UpdateDownloader {
     } catch {
       // 已经结束的请求 abort 会抛，吞掉即可
     }
+    // 🔴 兜底结算，这一步不能省。请求已经发出、响应还没回来时，`abort` 事件
+    // 可能根本不触发（响应对象上的 aborted 监听此刻还没挂上，事件无处可去）。
+    // 那时只置 `canceled` 标记，start() 就会一直挂在那儿等一个永不到来的事件：
+    // 用户看到的是「点了取消，进度条停住，但窗口永远不退出去」。
+    // 真正的 abort 事件晚一点到也无所谓，pipe() 里的 settled 会挡住重复结算。
+    this.cancelNow?.()
   }
 
   get downloading(): boolean {
@@ -230,6 +238,7 @@ export class UpdateDownloader {
       return { ok: false, message: `下载失败：${err instanceof Error ? err.message : String(err)}` }
     } finally {
       this.current = null
+      this.cancelNow = null
       this.canceled = false
     }
   }
@@ -276,8 +285,30 @@ export class UpdateDownloader {
 
       const fail = (message: string): void => {
         if (settled) return
-        settled = true
+        // 🔴 这里千万不能先置 settled。settled 是 done() 的「只结算一次」闸门，
+        // 在 fail 里提前置位，紧接着调 done() 会在它的第一行 `if (settled) return`
+        // 直接返回 —— resolve 永远不会被调用，start() 就这么永久挂住。
+        // 症状是用户点了「取消下载」，进度条停住、窗口再也退不出去。
+        // 结算标记只由 done() 负责，fail 只负责拼结果。
         this.canceled ? done({ ok: false, message, canceled: true }) : done({ ok: false, message })
+      }
+
+      // 🔴 兜底结算钩子，见 cancel() 里的注释。
+      // 请求已发出、响应还没回来时，`abort` / `aborted` 事件可能永远不来（此刻
+      // 还没有任何监听器挂上去），只置 `canceled` 标记会让 start() 永久挂起。
+      // 所以这里主动把「立刻结算」这条路交出去：cancel() 调它即可，
+      // 真正的事件晚点到也没关系，settled 会挡住重复结算。
+      this.cancelNow = (): void => {
+        // 🔴 必须是 destroy 不是 end。end() 只是「不再写了」，还要等缓冲区排空、
+        // fd 异步关闭；destroy() 立刻把句柄掐断。Windows 上文件句柄不释放，
+        // 后面 removeQuietly(part) 删不掉这个半成品（132MB 就赖在下载目录里了），
+        // 而且临时目录会卡在「待删除」状态，后续任何写都直接 EPERM。
+        try {
+          file.destroy()
+        } catch {
+          // 流可能已经结束了，destroy 再调会抛，吞掉即可
+        }
+        fail('已取消下载')
       }
 
       // 文件写异常（磁盘满 / 目录不可写）必须终止整个请求，否则会挂到天荒地老

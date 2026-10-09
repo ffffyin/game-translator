@@ -12,8 +12,17 @@ export interface AppSettings {
    */
   screenSource: string // 画面翻译源语言：auto | zh-CN | en | ja | fr
   screenTarget: string // 画面翻译目标语言
+  /**
+   * 画面（截图）翻译风格：auto | daily | pro | toxic
+   *
+   * 与聊天方向的 translationStyle 分开存。理由和方向一样，两组场景要的语气天然相反：
+   * 聊天翻译是「把我要发出去的话包装好」（可以说专业术语、甚至嘴臭），
+   * 截图翻译是「读懂队友在说什么」（要直白、别自作主张加语气），
+   * 共用一份风格时调了一边就会污染另一边。
+   */
+  screenStyle: string
   termLibrary: string // 术语库：general | dota2 | lol | pubg | cs2 | 自定义库 id
-  translationStyle: string // auto | daily | pro | toxic
+  translationStyle: string // 聊天方向风格：auto | daily | pro | toxic
   toxicLevel: string // 嘴臭火力档位：mild | trash | nuclear
   ocrEngine: string // local | vision | hybrid
   themeMode: string // dark | light | system
@@ -83,6 +92,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // 而用户把聊天方向改成 zh-CN → en 后画面方向不受影响。
   screenSource: 'auto',
   screenTarget: 'zh-CN',
+  // 与聊天风格分开；默认 auto，老用户升级后画面翻译的语气与之前完全一致
+  screenStyle: 'auto',
   termLibrary: 'general',
   translationStyle: 'auto',
   toxicLevel: 'trash',

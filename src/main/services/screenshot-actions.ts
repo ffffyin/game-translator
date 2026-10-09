@@ -90,16 +90,20 @@ function directionOptions(settings: AppSettings): OptionItem[] {
 }
 
 /**
- * 把画面方向映射进 settings，供 prompt 构建消费。不落库、不改原 settings。
+ * 把画面方向与画面风格映射进 settings，供 prompt 构建消费。不落库、不改原 settings。
  *
- * 翻译方向只体现在 prompt 文案里（见 translate-prompt.ts），
- * OCR 引擎完全不看它 —— 所以这里只需给下游一个「effective settings」。
+ * 翻译方向与翻译风格都只体现在 prompt 文案里（见 translate-prompt.ts），
+ * OCR 引擎完全不看它们 —— 所以这里只需给下游一个「effective settings」。
+ *
+ * ⚠️ 截图翻译的全部调用点都从这里取 settings，所以「画面用哪套方向 / 哪套风格」
+ * 只在这一个函数里决定。漏映射 screenStyle 会让截图翻译悄悄用回聊天风格。
  */
 function screenSettings(settings: AppSettings): AppSettings {
   return {
     ...settings,
     languageSource: settings.screenSource,
-    languageTarget: settings.screenTarget
+    languageTarget: settings.screenTarget,
+    translationStyle: settings.screenStyle
   }
 }
 
@@ -245,9 +249,14 @@ async function run(ctx: ScreenshotContext, mode: 'region' | 'full'): Promise<voi
       onRetranslate: async (req) => {
         // 方向优先用悬浮窗下拉里的选择，拆不开（空串/脏值）就沿用设置里的画面方向
         const dir = decodeDirection(req.direction)
+        // 悬浮窗改了风格就在「重新翻译」时记住：写的是 screenStyle（画面风格），
+        // 绝不能写 translationStyle —— 那会把用户给聊天方向挑的风格顶掉。
+        if (req.style && req.style !== settingsSvc.get('screenStyle')) {
+          settingsSvc.set('screenStyle', req.style)
+        }
         const s: AppSettings = {
           ...settingsSvc.getAll(),
-          translationStyle: req.style,
+          screenStyle: req.style,
           ocrEngine: req.engine,
           screenSource: dir?.source ?? settingsSvc.get('screenSource'),
           screenTarget: dir?.target ?? settingsSvc.get('screenTarget')

@@ -125,7 +125,8 @@ function close(): void {
             {{ o.label }}
           </option>
         </select>
-        <select v-model="style" title="翻译风格">
+        <!-- 这里是截图翻译的结果窗，风格下拉改的是「画面风格」，与聊天方向的风格分开 -->
+        <select v-model="style" title="画面翻译风格">
           <option v-for="o in data.styleOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
         </select>
         <button class="r-btn" :disabled="busy" @click="retranslate">

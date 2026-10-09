@@ -209,9 +209,16 @@ export function registerIpc(
           return { ok: false, error: '请先在「模型配置」中添加并选择默认模型' }
         }
         const current = settings.getAll()
+        // 画面方向与画面风格都要一起换：主页「手动测试」选的是画面那一套，
+        // 少换一个就会用聊天方向的风格去翻画面文字，测出来的结果跟真实截图翻译对不上。
         const effective: AppSettings =
           scope === 'screen'
-            ? { ...current, languageSource: current.screenSource, languageTarget: current.screenTarget }
+            ? {
+                ...current,
+                languageSource: current.screenSource,
+                languageTarget: current.screenTarget,
+                translationStyle: current.screenStyle
+              }
             : current
         const terms = resolveGlossary(db, effective, text)
         const r = await translateText({ config, text, settings: effective, terms })

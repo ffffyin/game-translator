@@ -52,12 +52,21 @@ async function runTest(): Promise<void> {
 }
 
 // 两组方向天然相反（聊天写中文发英文、截图看英文翻中文），一键对调省得手动改四次
+// 把「聊天那一套」和「画面那一套」整体对调：方向 + 风格一起换。
+// 只换方向会留下错配的组合（例如把 zh→en+pro 的聊天设置换成 zh→en 的画面设置），
+// 用户按下这个按钮的意图就是「两组设置换个个儿」。
 function swapDirections(): void {
-  const chat = { src: s.settings.languageSource, tgt: s.settings.languageTarget }
+  const chat = {
+    src: s.settings.languageSource,
+    tgt: s.settings.languageTarget,
+    style: s.settings.translationStyle
+  }
   s.update('languageSource', s.settings.screenSource)
   s.update('languageTarget', s.settings.screenTarget)
+  s.update('translationStyle', s.settings.screenStyle)
   s.update('screenSource', chat.src)
   s.update('screenTarget', chat.tgt)
+  s.update('screenStyle', chat.style)
 }
 
 async function refreshLibs(): Promise<void> {
@@ -108,11 +117,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <PageHeader title="主页" note="选择翻译方向、游戏类型、翻译风格与外观" />
+  <PageHeader title="主页" note="设置聊天与画面各自的翻译方向、风格，以及术语库与外观" />
 
   <div class="grid">
     <div class="m-card">
-      <div class="lab">翻译设置</div>
+      <div class="lab">聊天翻译方向（替换 / 复制翻译）</div>
       <div class="row">
         <label>源语言</label>
         <select class="m-input" :value="s.settings.languageSource" @change="set('languageSource', $event)">
@@ -127,13 +136,23 @@ onMounted(() => {
           </option>
         </select>
       </div>
+      <div class="row">
+        <label>翻译风格</label>
+        <select class="m-input" :value="s.settings.translationStyle" @change="set('translationStyle', $event)">
+          <option v-for="t in TRANSLATION_STYLES" :key="t.value" :value="t.value">{{ t.label }}</option>
+        </select>
+      </div>
       <div class="swap">
-        <button class="m-btn swap-btn" title="把聊天方向与画面方向对调" @click="swapDirections">
-          ⇄ 互换两组方向
+        <button
+          class="m-btn swap-btn"
+          title="把聊天与画面的方向、翻译风格整体对调"
+          @click="swapDirections"
+        >
+          ⇄ 互换两组方向与风格
         </button>
       </div>
-      <div class="lab sub">画面翻译方向（截图翻译）</div>
-      <p class="hint">截图翻译专用；与聊天方向互不干扰</p>
+      <div class="lab sub">画面翻译（截图翻译）</div>
+      <p class="hint">截图翻译专用；方向与风格都与聊天那一套互不干扰</p>
       <div class="row">
         <label>画面源语言</label>
         <select class="m-input" :value="s.settings.screenSource" @change="set('screenSource', $event)">
@@ -149,16 +168,17 @@ onMounted(() => {
         </select>
       </div>
       <div class="row">
+        <label>翻译风格</label>
+        <select class="m-input" :value="s.settings.screenStyle" @change="set('screenStyle', $event)">
+          <option v-for="t in TRANSLATION_STYLES" :key="t.value" :value="t.value">{{ t.label }}</option>
+        </select>
+      </div>
+      <div class="lab sub">共用设置</div>
+      <div class="row">
         <label>游戏类型（术语库）</label>
         <select class="m-input" :value="s.settings.termLibrary" @change="set('termLibrary', $event)">
           <option value="general">通用（不使用游戏术语）</option>
           <option v-for="t in libs" :key="t.id" :value="t.game">{{ t.name }}</option>
-        </select>
-      </div>
-      <div class="row">
-        <label>翻译风格</label>
-        <select class="m-input" :value="s.settings.translationStyle" @change="set('translationStyle', $event)">
-          <option v-for="t in TRANSLATION_STYLES" :key="t.value" :value="t.value">{{ t.label }}</option>
         </select>
       </div>
     </div>

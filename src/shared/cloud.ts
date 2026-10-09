@@ -20,6 +20,7 @@ export const CLOUD_SETTING_KEYS = [
   'languageTarget',
   'screenSource',
   'screenTarget',
+  'screenStyle',
   'termLibrary',
   'translationStyle',
   'toxicLevel',

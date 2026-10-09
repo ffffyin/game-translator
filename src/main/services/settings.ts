@@ -47,6 +47,8 @@ const ACCOUNT_SETTING_KEYS: Array<keyof AppSettings> = [
   // 否则该键在 DB 里「可能存在也可能不存在」，云同步快照会漂移。
   'screenSource',
   'screenTarget',
+  // 画面（截图）翻译风格，与聊天风格的 translationStyle 分开
+  'screenStyle',
   // 默认空串：没跳过任何版本。本机键——这台机器跳过不代表别的机器也跳过，
   // 所以它不在 CLOUD_SETTING_KEYS 里。
   'updateSkipVersion'
