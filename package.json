@@ -1,6 +1,6 @@
 {
   "name": "game-translator",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "游戏翻译助手 Game Translator",
   "main": "./out/main/index.js",
   "author": "fygod",
