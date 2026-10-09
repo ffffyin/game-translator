@@ -20,7 +20,7 @@ import {
   normalizeOcrEngine,
   type AppSettings
 } from '../../shared/defaults'
-import type { ResultData } from '../../shared/result'
+import type { OptionItem, ResultData } from '../../shared/result'
 
 export interface ScreenshotContext {
   win: BrowserWindow
@@ -29,9 +29,84 @@ export interface ScreenshotContext {
 
 let busy = false // 防重入
 
+/** 悬浮窗宽度只有 430px，方向下拉用短标签，长文案会把控件挤换行 */
+const SHORT_LANGUAGE_NAMES: Record<string, string> = {
+  auto: '自动',
+  'zh-CN': '中',
+  en: '英',
+  ja: '日',
+  fr: '法'
+}
+
+function shortLang(code: string): string {
+  return SHORT_LANGUAGE_NAMES[code] ?? code
+}
+
+/** 方向值的唯一格式：`"源|目标"`。主进程与渲染层都按这个拆。 */
+export function encodeDirection(source: string, target: string): string {
+  return `${source}|${target}`
+}
+
+export function decodeDirection(direction: string): { source: string; target: string } | null {
+  const i = direction.indexOf('|')
+  if (i <= 0 || i === direction.length - 1) return null
+  const source = direction.slice(0, i)
+  const target = direction.slice(i + 1)
+  const known = LANGUAGES.some((l) => l.value === source)
+  const knownTarget = LANGUAGES.some((l) => l.value === target && l.value !== 'auto')
+  if (!known || !knownTarget) return null
+  return { source, target }
+}
+
+/** 预设的常用画面方向组合，覆盖「看外文」与「写外文」两类主要场景 */
+const DIRECTION_PRESETS: Array<[string, string]> = [
+  ['auto', 'zh-CN'],
+  ['en', 'zh-CN'],
+  ['zh-CN', 'en'],
+  ['ja', 'zh-CN'],
+  ['zh-CN', 'ja'],
+  ['fr', 'zh-CN'],
+  ['zh-CN', 'fr']
+]
+
+/**
+ * 构造悬浮窗的方向下拉。
+ *
+ * 当前方向必须出现在列表里，否则下拉会选不中当前值（显示成空白）。
+ * 用户设的组合不在预设中时，把它插到最前面。
+ */
+function directionOptions(settings: AppSettings): OptionItem[] {
+  const current = encodeDirection(settings.screenSource, settings.screenTarget)
+  const list: OptionItem[] = DIRECTION_PRESETS.map(([s, t]) => ({
+    value: encodeDirection(s, t),
+    label: `${shortLang(s)} → ${shortLang(t)}`
+  }))
+  if (!list.some((o) => o.value === current)) {
+    const src = LANGUAGES.find((l) => l.value === settings.screenSource)?.label ?? settings.screenSource
+    const tgt = LANGUAGES.find((l) => l.value === settings.screenTarget)?.label ?? settings.screenTarget
+    list.unshift({ value: current, label: `${src} → ${tgt}` })
+  }
+  return list
+}
+
+/**
+ * 把画面方向映射进 settings，供 prompt 构建消费。不落库、不改原 settings。
+ *
+ * 翻译方向只体现在 prompt 文案里（见 translate-prompt.ts），
+ * OCR 引擎完全不看它 —— 所以这里只需给下游一个「effective settings」。
+ */
+function screenSettings(settings: AppSettings): AppSettings {
+  return {
+    ...settings,
+    languageSource: settings.screenSource,
+    languageTarget: settings.screenTarget
+  }
+}
+
 function directionLabel(settings: AppSettings): string {
-  const src = LANGUAGES.find((l) => l.value === settings.languageSource)?.label ?? '自动检测'
-  const tgt = LANGUAGES.find((l) => l.value === settings.languageTarget)?.label ?? settings.languageTarget
+  const s = screenSettings(settings)
+  const src = LANGUAGES.find((l) => l.value === s.languageSource)?.label ?? '自动检测'
+  const tgt = LANGUAGES.find((l) => l.value === s.languageTarget)?.label ?? s.languageTarget
   return `${src} → ${tgt}`
 }
 
@@ -44,16 +119,19 @@ function buildResultData(
 ): ResultData {
   const visionModel = models.getDefault()
   const canVision = !!visionModel && visionModel.vision_enabled === 1 && !!visionModel.vision_model
+  const s = screenSettings(settings)
   return {
     directionLabel: directionLabel(settings),
     engine,
     pairs: pairs.map((p, i) => ({ id: i + 1, original: p.original, translation: p.translation })),
     styleOptions: TRANSLATION_STYLES.map((s) => ({ value: s.value, label: s.label })),
-    currentStyle: settings.translationStyle,
+    currentStyle: s.translationStyle,
     engineOptions: OCR_ENGINES.map((o) => ({ value: o.value, label: o.label })),
     currentEngine: engine,
     canVision,
-    degraded
+    degraded,
+    directionOptions: directionOptions(settings),
+    currentDirection: encodeDirection(settings.screenSource, settings.screenTarget)
   }
 }
 
@@ -146,11 +224,12 @@ async function run(ctx: ScreenshotContext, mode: 'region' | 'full'): Promise<voi
       ? recognized.lines.map((l) => l.text)
       : recognized.text.split('\n')
     const s0 = settingsSvc.getAll()
-    const terms = resolveGlossary(db, s0, recognized.text)
+    const scr = screenSettings(s0)
+    const terms = resolveGlossary(db, scr, recognized.text)
     const translated = await translateOcrLines({
       lines,
       config,
-      settings: s0,
+      settings: scr,
       terms,
       onProgress: (sec) =>
         notify(win, {
@@ -164,10 +243,14 @@ async function run(ctx: ScreenshotContext, mode: 'region' | 'full'): Promise<voi
       anchor,
       displayId,
       onRetranslate: async (req) => {
+        // 方向优先用悬浮窗下拉里的选择，拆不开（空串/脏值）就沿用设置里的画面方向
+        const dir = decodeDirection(req.direction)
         const s: AppSettings = {
           ...settingsSvc.getAll(),
           translationStyle: req.style,
-          ocrEngine: req.engine
+          ocrEngine: req.engine,
+          screenSource: dir?.source ?? settingsSvc.get('screenSource'),
+          screenTarget: dir?.target ?? settingsSvc.get('screenTarget')
         }
         const rec = await recognizeText({
           engine: req.engine,
@@ -177,9 +260,17 @@ async function run(ctx: ScreenshotContext, mode: 'region' | 'full'): Promise<voi
         })
         if (!rec.text) throw new Error('未识别到文字')
         const recLines = rec.lines.length ? rec.lines.map((l) => l.text) : rec.text.split('\n')
-        const reTerms = resolveGlossary(db, s, rec.text)
-        const tt = await translateOcrLines({ lines: recLines, config, settings: s, terms: reTerms })
+        const scr = screenSettings(s)
+        const reTerms = resolveGlossary(db, scr, rec.text)
+        const tt = await translateOcrLines({ lines: recLines, config, settings: scr, terms: reTerms })
         return buildResultData(s, rec.engine, tt.pairs, models, !!rec.degraded)
+      },
+      // 下拉里改方向要记住：写回设置，下次截图翻译直接生效
+      onSetDirection: async (direction) => {
+        const dir = decodeDirection(direction)
+        if (!dir) return
+        settingsSvc.set('screenSource', dir.source)
+        settingsSvc.set('screenTarget', dir.target)
       }
     })
     overlay.setData(

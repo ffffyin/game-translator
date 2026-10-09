@@ -42,7 +42,11 @@ const ACCOUNT_SETTING_KEYS: Array<keyof AppSettings> = [
   'cloudAutoLogin',
   'cloudSavedPassword',
   // 默认 0：API Key 上云必须由用户自己打开，升级不该替他做这个决定
-  'cloudSyncApi'
+  'cloudSyncApi',
+  // 画面（截图）翻译方向。老用户升级后不覆盖已有值，但必须立刻落库，
+  // 否则该键在 DB 里「可能存在也可能不存在」，云同步快照会漂移。
+  'screenSource',
+  'screenTarget'
 ]
 
 /** 把缺失的新设置键补进数据库。幂等，可重复调用。 */

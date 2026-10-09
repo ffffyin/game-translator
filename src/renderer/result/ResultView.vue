@@ -10,6 +10,7 @@ const errorMsg = ref('')
 
 const engine = ref<OcrEngine>('local')
 const style = ref('auto')
+const direction = ref('')
 
 // 徽章文案：组合模式降级时明确告知用户实际用了 AI
 const engineLabel = computed(() => {
@@ -24,6 +25,7 @@ onMounted(() => {
     data.value = d
     engine.value = d.currentEngine
     style.value = d.currentStyle
+    direction.value = d.currentDirection ?? ''
   })
 })
 
@@ -31,10 +33,21 @@ async function retranslate() {
   if (!data.value) return
   busy.value = true
   errorMsg.value = ''
-  const req: RetranslateRequest = { engine: engine.value, style: style.value }
+  const req: RetranslateRequest = {
+    engine: engine.value,
+    style: style.value,
+    direction: direction.value
+  }
   const r = await window.api.resultRetranslate(req)
   busy.value = false
   if (!r.ok) errorMsg.value = r.error ?? '重新翻译失败'
+}
+
+// 切换方向后立刻落库并重新翻译，之后的新截图也沿用这个方向
+async function onDirectionChange(): Promise<void> {
+  if (!direction.value) return
+  await window.api.resultSetDirection(direction.value)
+  await retranslate()
 }
 
 async function copyAll() {
@@ -95,6 +108,17 @@ function close(): void {
       </div>
 
       <div class="controls">
+        <select
+          v-if="data.directionOptions && data.directionOptions.length"
+          v-model="direction"
+          class="dir"
+          title="翻译方向"
+          @change="onDirectionChange"
+        >
+          <option v-for="o in data.directionOptions" :key="o.value" :value="o.value">
+            {{ o.label }}
+          </option>
+        </select>
         <select v-model="engine" title="识别通道">
           <option v-for="o in data.engineOptions" :key="o.value" :value="o.value"
             :disabled="o.value === 'vision' && !data.canVision">
@@ -231,6 +255,7 @@ function close(): void {
 }
 .controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 7px;
   padding: 9px 12px 12px;
   border-top: 1px solid var(--line);
@@ -244,6 +269,11 @@ function close(): void {
   border-radius: 7px;
   font-size: 11.5px;
   padding: 6px 4px;
+}
+/* 430px 宽要塞四个控件，方向下拉给窄一点，别把按钮挤下去 */
+.controls select.dir {
+  flex: 1 1 88px;
+  min-width: 84px;
 }
 .r-btn {
   background: var(--card2);

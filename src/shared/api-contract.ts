@@ -90,8 +90,15 @@ export interface ApiContract {  ping: () => Promise<string>
   backupCreate: () => Promise<BackupFile[]>
   backupRestore: (name: string) => Promise<void>
   resetToDefaults: () => Promise<ResetResult>
+  /**
+   * 主页手动测试卡：翻译一段文字。
+   *
+   * scope 决定走哪组方向：`chat` 聊天方向（替换/复制翻译），
+   * `screen` 画面方向（截图翻译）。传 undefined 按 chat 处理。
+   */
   testTranslate: (
-    text: string
+    text: string,
+    scope?: 'chat' | 'screen'
   ) => Promise<{ ok: boolean; translation?: string; error?: string }>
 
   modelsList: () => Promise<ModelConfigView[]>
@@ -138,6 +145,8 @@ export interface ApiContract {  ping: () => Promise<string>
   onResultData: (cb: (d: ResultData) => void) => () => void
   resultRetranslate: (req: RetranslateRequest) => Promise<RebindResult>
   resultSetPinned: (pinned: boolean) => void
+  /** 切换画面翻译方向（`"源|目标"`）并写入设置，之后一直生效 */
+  resultSetDirection: (direction: string) => Promise<RebindResult>
   resultClose: () => void
   resultCopy: (text: string) => void
 

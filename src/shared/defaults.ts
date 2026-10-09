@@ -2,6 +2,16 @@
 export interface AppSettings {
   languageSource: string // 源语言：auto | zh-CN | en | ja | fr
   languageTarget: string // 目标语言
+  /**
+   * 画面（截图）翻译专用方向，与上面的聊天方向**互不联动**。
+   *
+   * 这两组方向天然相反：聊天框里玩家写中文要换成英文发给外国队友
+   * （zh-CN → en），而截图要看画面上外国队友的英文并翻成中文
+   * （en → zh-CN）。早先两组共用一个方向，结果截图翻译变成「英译英」，
+   * 所以画面方向单独存一份、单独改。
+   */
+  screenSource: string // 画面翻译源语言：auto | zh-CN | en | ja | fr
+  screenTarget: string // 画面翻译目标语言
   termLibrary: string // 术语库：general | dota2 | lol | pubg | cs2 | 自定义库 id
   translationStyle: string // auto | daily | pro | toxic
   toxicLevel: string // 嘴臭火力档位：mild | trash | nuclear
@@ -58,6 +68,11 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   languageSource: 'auto',
   languageTarget: 'zh-CN',
+  // 画面翻译的本质需求是「把画面上的外文翻成我能看懂的语言」，
+  // 目标默认中文、源交给模型自己判断。这样默认两组方向一致，
+  // 而用户把聊天方向改成 zh-CN → en 后画面方向不受影响。
+  screenSource: 'auto',
+  screenTarget: 'zh-CN',
   termLibrary: 'general',
   translationStyle: 'auto',
   toxicLevel: 'trash',

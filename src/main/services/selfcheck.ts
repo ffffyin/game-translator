@@ -58,13 +58,20 @@ export function runOverlaySelfcheck(): ResultOverlayHandle {
     currentStyle: 'auto',
     engineOptions: OCR_ENGINES.map((o) => ({ value: o.value, label: o.label })),
     currentEngine: 'local',
-    canVision: false
+    canVision: false,
+    directionOptions: [
+      { value: 'auto|zh-CN', label: '自动 → 中' },
+      { value: 'en|zh-CN', label: '英 → 中' },
+      { value: 'zh-CN|en', label: '中 → 英' }
+    ],
+    currentDirection: 'auto|zh-CN'
   }
   const anchor = { x: 200, y: 150, width: 700, height: 400 }
   const overlay = openResultOverlay({
     anchor,
     displayId: getPrimaryDisplayId(),
-    onRetranslate: async () => data
+    onRetranslate: async () => data,
+    onSetDirection: async () => undefined
   })
   overlay.setData(data)
   return overlay

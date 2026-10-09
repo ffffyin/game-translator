@@ -22,6 +22,7 @@ import { listBackups, createBackup, restoreBackup } from '../services/backup'
 import { wipeDatabaseFiles } from '../services/install-guard'
 import { isSafeExternalUrl } from '../../shared/links'
 import type { NotifyPayload } from '../../shared/api-contract'
+import type { AppSettings } from '../../shared/defaults'
 import type { ModelConfigInput } from '../../shared/model'
 import type {
   AccountChangePasswordInput,
@@ -127,18 +128,27 @@ export function registerIpc(
     }
   })
 
-  // 主页手动测试卡：用当前方向/术语/风格组合翻译一段文字
+  // 主页手动测试卡：用指定方向 + 当前术语/风格组合翻译一段文字。
+  // scope='screen' 时走画面方向，让用户可以单独验证截图翻译会不会「英译英」。
   handle.handle(
     'app:testTranslate',
-    async (_e, text: string): Promise<{ ok: boolean; translation?: string; error?: string }> => {
+    async (
+      _e,
+      text: string,
+      scope?: 'chat' | 'screen'
+    ): Promise<{ ok: boolean; translation?: string; error?: string }> => {
       try {
         const config = models.getDefault()
         if (!config) {
           return { ok: false, error: '请先在「模型配置」中添加并选择默认模型' }
         }
         const current = settings.getAll()
-        const terms = resolveGlossary(db, current, text)
-        const r = await translateText({ config, text, settings: current, terms })
+        const effective: AppSettings =
+          scope === 'screen'
+            ? { ...current, languageSource: current.screenSource, languageTarget: current.screenTarget }
+            : current
+        const terms = resolveGlossary(db, effective, text)
+        const r = await translateText({ config, text, settings: effective, terms })
         usage.log({
           kind: 'text',
           configId: config.id,

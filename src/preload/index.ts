@@ -31,7 +31,8 @@ const api: ApiContract = {
   backupCreate: () => ipcRenderer.invoke('backup:create'),
   backupRestore: (name: string) => ipcRenderer.invoke('backup:restore', name),
   resetToDefaults: () => ipcRenderer.invoke('app:resetToDefaults'),
-  testTranslate: (text: string) => ipcRenderer.invoke('app:testTranslate', text),
+  testTranslate: (text: string, scope?: 'chat' | 'screen') =>
+    ipcRenderer.invoke('app:testTranslate', text, scope),
 
   modelsList: () => ipcRenderer.invoke('models:list'),
   modelsGet: (id) => ipcRenderer.invoke('models:get', id),
@@ -82,6 +83,7 @@ const api: ApiContract = {
   },
   resultRetranslate: (req) => ipcRenderer.invoke('result:retranslate', req),
   resultSetPinned: (pinned) => ipcRenderer.send('result:setPinned', pinned),
+  resultSetDirection: (direction) => ipcRenderer.invoke('result:setDirection', direction),
   resultClose: () => ipcRenderer.send('result:close'),
   resultCopy: (text) => ipcRenderer.send('result:copy', text),
 

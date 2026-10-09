@@ -14,6 +14,8 @@ export interface OpenResultArgs {
   anchor: AnchorRect // 选区物理矩形（全屏翻译时为显示器矩形）
   displayId: number
   onRetranslate: (req: RetranslateRequest) => Promise<ResultData>
+  /** 悬浮窗里切换翻译方向：主进程负责落库，之后重新翻译即可生效 */
+  onSetDirection: (direction: string) => Promise<void>
 }
 
 export interface ResultOverlayHandle {
@@ -119,6 +121,15 @@ export function openResultOverlay(args: OpenResultArgs): ResultOverlayHandle {
   ipc.on('result:setPinned', (_e, value: boolean) => {
     // 置顶锁定：窗口本身始终 screen-saver 置顶，锁定只影响失焦是否自动关闭
     pinned = value
+  })
+  // 切换方向：立即落库，下一次重新翻译就用新方向
+  ipc.handle('result:setDirection', async (_e, direction: string) => {
+    try {
+      await args.onSetDirection(direction)
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : '切换方向失败' }
+    }
   })
   ipc.on('result:close', () => {
     if (!win.isDestroyed()) win.close()

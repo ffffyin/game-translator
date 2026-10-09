@@ -18,6 +18,8 @@ export const CLOUD_SNAPSHOT_VERSION = 1
 export const CLOUD_SETTING_KEYS = [
   'languageSource',
   'languageTarget',
+  'screenSource',
+  'screenTarget',
   'termLibrary',
   'translationStyle',
   'toxicLevel',

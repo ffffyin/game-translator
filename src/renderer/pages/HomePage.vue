@@ -30,6 +30,8 @@ const testInput = ref('')
 const testResult = ref('')
 const testError = ref('')
 const testBusy = ref(false)
+// 手动测试卡走哪组方向：聊天（替换/复制翻译）还是画面（截图翻译）
+const testScope = ref<'chat' | 'screen'>('chat')
 
 async function runTest(): Promise<void> {
   const text = testInput.value.trim()
@@ -41,12 +43,21 @@ async function runTest(): Promise<void> {
   testResult.value = ''
   testError.value = ''
   try {
-    const r = await window.api.testTranslate(text)
+    const r = await window.api.testTranslate(text, testScope.value)
     if (r.ok) testResult.value = r.translation ?? ''
     else testError.value = r.error ?? '翻译失败'
   } finally {
     testBusy.value = false
   }
+}
+
+// 两组方向天然相反（聊天写中文发英文、截图看英文翻中文），一键对调省得手动改四次
+function swapDirections(): void {
+  const chat = { src: s.settings.languageSource, tgt: s.settings.languageTarget }
+  s.update('languageSource', s.settings.screenSource)
+  s.update('languageTarget', s.settings.screenTarget)
+  s.update('screenSource', chat.src)
+  s.update('screenTarget', chat.tgt)
 }
 
 async function refreshLibs(): Promise<void> {
@@ -78,6 +89,10 @@ async function refreshHotkeys() {
 
 function set(k: keyof AppSettings, e: Event) {
   s.update(k, (e.target as HTMLSelectElement).value)
+}
+
+function langLabel(code: string): string {
+  return LANGUAGES.find((l) => l.value === code)?.label ?? code
 }
 function applyCustomHex() {
   if (customHex.value.trim()) {
@@ -125,6 +140,26 @@ onMounted(() => {
           <option v-for="t in TRANSLATION_STYLES" :key="t.value" :value="t.value">{{ t.label }}</option>
         </select>
       </div>
+      <div class="swap">
+        <button class="m-btn swap-btn" title="把聊天方向与画面方向对调" @click="swapDirections">
+          ⇄ 互换两组方向
+        </button>
+      </div>
+      <div class="lab sub">画面翻译方向（截图翻译）</div>
+      <div class="row">
+        <label>画面源语言</label>
+        <select class="m-input" :value="s.settings.screenSource" @change="set('screenSource', $event)">
+          <option v-for="l in LANGUAGES" :key="l.value" :value="l.value">{{ l.label }}</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>画面目标语言</label>
+        <select class="m-input" :value="s.settings.screenTarget" @change="set('screenTarget', $event)">
+          <option v-for="l in LANGUAGES.filter((x) => x.value !== 'auto')" :key="l.value" :value="l.value">
+            {{ l.label }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <div class="m-card">
@@ -166,6 +201,13 @@ onMounted(() => {
         rows="3"
         placeholder="输入要翻译的话，例如 gg noob team"
       ></textarea>
+      <div class="test-scope">
+        <label for="test-scope">验证</label>
+        <select id="test-scope" v-model="testScope" class="m-input">
+          <option value="chat">聊天方向（{{ langLabel(s.settings.languageSource) }} → {{ langLabel(s.settings.languageTarget) }}）</option>
+          <option value="screen">画面方向（{{ langLabel(s.settings.screenSource) }} → {{ langLabel(s.settings.screenTarget) }}）</option>
+        </select>
+      </div>
       <div class="test-actions">
         <button class="m-btn accent" :disabled="testBusy" @click="runTest">
           {{ testBusy ? '翻译中…' : '翻译' }}
@@ -272,9 +314,34 @@ onMounted(() => {
   color: #1a1408;
   font-weight: 600;
 }
-.swatches {
+.swap {
   display: flex;
+  justify-content: center;
+  margin: 14px 0 16px;
+}
+.swap-btn {
+  font-size: 12px;
+  padding: 6px 14px;
+  color: var(--txt2);
+}
+.lab.sub {
+  margin-top: 4px;
+  margin-bottom: 12px;
+  padding-top: 13px;
+  border-top: 1px dashed var(--line);
+}
+.test-scope {
+  display: flex;
+  align-items: center;
   gap: 10px;
+  margin-top: 12px;
+  font-size: 12.5px;
+  color: var(--txt2);
+}
+.test-scope select {
+  width: auto;
+  padding: 6px 10px;
+  font-size: 12.5px;
 }
 .sw {
   width: 30px;
