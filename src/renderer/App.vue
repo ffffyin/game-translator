@@ -49,7 +49,11 @@ onMounted(async () => {
   } catch {
     // 本机设置读不到也要能进登录页，否则用户连软件都用不了
   }
-  // 登录态是本地会话判定，断网也能拿到 signedIn=true
+  // 启动门控：必须在 refresh 之前。
+  //  - 没开「自动登录」→ 清掉本机会话，返回未登录（每次打开都要重新登录）；
+  //  - 开了 → 用保存的邮箱 + 密码走一次真实联网登录，成功才返回已登录。
+  // 这一趟要联网，断网时可能慢，但它决定的是「这一趟能不能直接进软件」，不能省。
+  await auth.prepareBoot()
   await auth.refresh()
   booting.value = false
   await nextTick()

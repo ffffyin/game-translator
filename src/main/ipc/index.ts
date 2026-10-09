@@ -323,7 +323,12 @@ export function registerIpc(
   })
 
   // 云端账号与配置同步（全部走异步，失败一律返回 ok:false + 中文原因，不抛给界面）
+  // 启动门控：必须在 cloudStatus 之前调用一次，它决定这一趟要不要停在登录页
+  handle.handle('cloud:prepareBoot', () => cloud.prepareBoot())
   handle.handle('cloud:status', () => cloud.status())
+  // 登录框预填 / 取消勾选时立刻删除密文（密码只在内存里走一趟，不落盘不进日志）
+  handle.handle('cloud:savedPassword', () => cloud.takeSavedPassword())
+  handle.handle('cloud:forgetSavedPassword', () => cloud.forgetSavedPassword())
   handle.handle('cloud:localSummary', () => cloud.localSummary())
   handle.handle('cloud:sendOtp', (_e, email: string, usage: 'register' | 'reset') =>
     cloud.sendOtp(email, usage === 'reset' ? 'reset' : 'register')

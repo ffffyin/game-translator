@@ -610,6 +610,39 @@ describe('AuthPage 分段页签：同一时刻只有一个表单', () => {
   })
 })
 
+describe('AuthPage 启动门控提示（自动登录失败不许静默）', () => {
+  it('门控带回失败原因时，把它显示在登录页上', async () => {
+    installAccountApi(signedOut())
+    const w = mountVm(AuthPage)
+
+    // 模拟：主进程尝试自动登录但断网了，把原因回传到登录页
+    useAuthStore().bootMessage = '网络不可用，无法自动登录，请联网后重试'
+    await nextTick()
+
+    expect(w.text()).toContain('网络不可用，无法自动登录，请联网后重试')
+  })
+
+  it('已登录（自动登录成功）时不显示门控提示', async () => {
+    installAccountApi(signedIn())
+    const w = mountVm(AuthPage)
+
+    useAuthStore().bootMessage = '自动登录失败，请重新输入密码'
+    useAuthStore().applyStatus(signedIn())
+    await nextTick()
+
+    expect(w.text()).not.toContain('自动登录失败')
+  })
+
+  it('离线时如实告知需要联网，不再承诺「断网也能用」', async () => {
+    installAccountApi(signedOut({ online: false }))
+    const w = mountVm(AuthPage)
+    await useAuthStore().refresh()
+    await vi.waitFor(() => expect(w.text()).toContain('离线状态下无法登录'))
+
+    expect(w.text()).not.toContain('断网也能')
+  })
+})
+
 describe('AuthPage 云端服务不可用时的自救', () => {
   it('显示原因并提供「重试」，点击后重新拉一次状态', async () => {
     const cloudStatus = vi.fn(async () => ({

@@ -79,7 +79,10 @@ export function syncOk(message = '已保存到云端'): CloudSyncResult {
 export type AccountApiOverrides = Partial<Record<string, unknown>>
 
 export interface InstalledAccountApi {
+  cloudPrepareBoot: ReturnType<typeof vi.fn>
   cloudStatus: ReturnType<typeof vi.fn>
+  cloudSavedPassword: ReturnType<typeof vi.fn>
+  cloudForgetSavedPassword: ReturnType<typeof vi.fn>
   cloudLocalSummary: ReturnType<typeof vi.fn>
   cloudSendOtp: ReturnType<typeof vi.fn>
   cloudSignIn: ReturnType<typeof vi.fn>
@@ -111,7 +114,12 @@ export function installAccountApi(
   const bag: Record<string, unknown> = { ...DEFAULT_SETTINGS, cloudSyncApi: 0 }
 
   const api = {
+    // 启动门控：默认「未开启自动登录 → 停在登录页」，用例可自行覆盖
+    cloudPrepareBoot: vi.fn(async () => status),
     cloudStatus: vi.fn(async () => status),
+    // 预填密码：默认「本机没存过」，即不预填
+    cloudSavedPassword: vi.fn(async () => ''),
+    cloudForgetSavedPassword: vi.fn(async () => simpleOk('已清除本机保存的密码')),
     cloudLocalSummary: vi.fn(async () => SUMMARY),
     cloudSendOtp: vi.fn(async () => otpOk()),
     cloudSignIn: vi.fn(async () => authOk('登录成功', signedIn())),

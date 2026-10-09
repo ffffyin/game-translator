@@ -13,7 +13,15 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     status: null as CloudStatus | null,
     /** status 是否已回填过一次。false 时路由守卫一律放行，避免开局把人误拦到登录页 */
-    ready: false
+    ready: false,
+    /**
+     * 启动门控带回来的提示（自动登录失败的原因等）。
+     *
+     * 单独存一份是因为 refresh() 随后会覆盖 status —— 而自动登录失败的原因
+     * 恰恰必须让用户看见（断网和被改密码是两件事），不能静默消失。
+     * 登录成功后自动清空。
+     */
+    bootMessage: null as string | null
   }),
 
   getters: {
@@ -33,6 +41,27 @@ export const useAuthStore = defineStore('auth', {
     /** 表单拿到 CloudAuthResult 后回填登录态，省掉一次额外的 cloudStatus 往返 */
     applyStatus(next: CloudStatus | null | undefined): void {
       this.status = next ?? null
+      if (this.status?.signedIn) this.bootMessage = null
+    },
+
+    /**
+     * 启动门控：渲染层起来后**第一个**调用，必须在 refresh() 之前。
+     *
+     * 未开启「自动登录」时主进程会清掉本机会话并返回未登录（每次打开都要重新登录）；
+     * 开启时用保存的邮箱 + 密码走一次真实联网登录。失败的原因留在 bootMessage 里，
+     * 由登录页显示 —— 静默回到登录页会让人以为软件坏了。
+     */
+    async prepareBoot(): Promise<CloudStatus | null> {
+      try {
+        const next = await window.api.cloudPrepareBoot()
+        if (next && typeof next.signedIn === 'boolean') {
+          this.applyStatus(next)
+          if (!next.signedIn && next.message) this.bootMessage = next.message
+        }
+      } catch {
+        // 门控失败也要继续往下走：refresh() 会再判一次，最坏结果只是停在登录页
+      }
+      return this.status
     },
 
     /** 重新读取登录态。**离线可用**：成败都不改变「本地会话是否有效」这一判定 */

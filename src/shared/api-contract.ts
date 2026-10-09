@@ -172,8 +172,22 @@ export interface ApiContract {  ping: () => Promise<string>
   phrasesRemove: (id: number) => Promise<void>
   phrasesMove: (id: number, direction: 'up' | 'down') => Promise<void>
 
-  // 云端账号与配置同步（可选功能：未登录/断网不影响任何本地能力）
+  // 云端账号与配置同步（登录是强制的：未通过云端验证就不能进入软件）
+  /**
+   * 启动门控：渲染层起来后第一个调用。
+   *
+   * 未开启「自动登录」时清掉本机会话并返回未登录 —— 这就是「每次打开都要重新登录」；
+   * 开启时用保存的邮箱 + 密码走一次真实网络登录，成功才返回已登录。
+   */
+  cloudPrepareBoot: () => Promise<CloudStatus>
   cloudStatus: () => Promise<CloudStatus>
+  /**
+   * 登录框预填用的密码明文。只在「保存密码=开 且 自动登录=关」时非空，
+   * 其余一律 ''。调用方只能把它塞进密码输入框，不许落盘、不许打日志。
+   */
+  cloudSavedPassword: () => Promise<string>
+  /** 取消「保存密码」时立刻删除本机密文并关闭自动登录 */
+  cloudForgetSavedPassword: () => Promise<CloudSimpleResult>
   cloudLocalSummary: () => Promise<CloudSummary>
   /** 发验证码。usage 决定走「注册发码」还是「重置密码发码」，两条链路使用不同 usage */
   cloudSendOtp: (email: string, usage: 'register' | 'reset') => Promise<CloudOtpResult>

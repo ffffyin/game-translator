@@ -36,6 +36,11 @@ const ACCOUNT_SETTING_KEYS: Array<keyof AppSettings> = [
   'cloudNickname',
   'cloudAccountEmail',
   'cloudRememberAccount',
+  // 默认 0：保存密码与自动登录都必须由用户自己打开。它们只决定本机行为，
+  // 且 cloudSavedPassword 是 DPAPI 密文，绝不在 CLOUD_SETTING_KEYS 白名单里。
+  'cloudSavePassword',
+  'cloudAutoLogin',
+  'cloudSavedPassword',
   // 默认 0：API Key 上云必须由用户自己打开，升级不该替他做这个决定
   'cloudSyncApi'
 ]

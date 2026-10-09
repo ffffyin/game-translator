@@ -112,7 +112,10 @@ const api: ApiContract = {
   phrasesRemove: (id) => ipcRenderer.invoke('phrases:remove', id),
   phrasesMove: (id, direction) => ipcRenderer.invoke('phrases:move', id, direction),
 
+  cloudPrepareBoot: () => ipcRenderer.invoke('cloud:prepareBoot'),
   cloudStatus: () => ipcRenderer.invoke('cloud:status'),
+  cloudSavedPassword: () => ipcRenderer.invoke('cloud:savedPassword'),
+  cloudForgetSavedPassword: () => ipcRenderer.invoke('cloud:forgetSavedPassword'),
   cloudLocalSummary: () => ipcRenderer.invoke('cloud:localSummary'),
   cloudSendOtp: (email, usage) => ipcRenderer.invoke('cloud:sendOtp', email, usage),
   cloudSignIn: (input) => ipcRenderer.invoke('cloud:signIn', input),

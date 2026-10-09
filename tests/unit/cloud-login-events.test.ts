@@ -105,6 +105,8 @@ type Mutable = {
   cached: CloudStatus | null
   initError: string | null
   storage: unknown
+  /** 「本次进程内是否成功在线登录过」：现在它是能不能用软件的唯一凭据 */
+  onlineLoginOk: boolean
 }
 
 /**
@@ -263,6 +265,8 @@ describe('boot 流水：一个进程只发一次', () => {
   it('同一个实例反复 status()，只插一条 boot', async () => {
     const calls = installFetch(() => new Response('{}', { status: 201 }))
     const svc = serviceWith()
+    // 现在的判定：只有本次进程内成功在线登录过才算已登录，boot 才发得出去
+    ;(svc as unknown as Mutable).onlineLoginOk = true
 
     await svc.status()
     await svc.status()
@@ -273,7 +277,7 @@ describe('boot 流水：一个进程只发一次', () => {
     expect(eventsOfKind(calls, 'boot')).toHaveLength(1)
   })
 
-  it('断网回落缓存也算已登录，同样只发一次 boot（公共出口覆盖所有分支）', async () => {
+  it('在线登录成功后中途掉线：仍算已登录，同样只发一次 boot（公共出口覆盖所有分支）', async () => {
     const calls = installFetch(() => new Response('{}', { status: 201 }))
     const svc = new CloudService('', () => undefined as never)
     const m = svc as unknown as Mutable
@@ -301,6 +305,8 @@ describe('boot 流水：一个进程只发一次', () => {
     }
     m.initError = null
     m.storage = null
+    // 人刚在线登录成功过，之后才掉线 —— 这种情况必须放行，且 boot 只发一次
+    m.onlineLoginOk = true
 
     const first = await svc.status()
     const second = await svc.status()

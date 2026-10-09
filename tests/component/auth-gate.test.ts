@@ -120,7 +120,18 @@ describe('App.vue 登录门', () => {
     expect(w.findAll('a.nav-item')).toHaveLength(7)
   })
 
-  it('离线但本机已有会话：照常使用，不被踢下线', async () => {
+  it('离线且未通过云端验证 → 停在登录页（离线打不开软件）', async () => {
+    installAccountApi(signedOut({ online: false, message: '网络不可用，离线状态下无法登录，请联网后重试' }))
+    const pinia = boot(createPinia())
+    const router = makeRouter()
+
+    const w = mountApp(pinia, router)
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/auth'))
+    expect(w.find('aside.side').exists()).toBe(false)
+  })
+
+  it('在线登录成功后中途掉线：主进程仍判定已登录，照常使用', async () => {
+    // 只有「本次在线登录成功过」才会出现 signedIn + online:false 这种组合
     installAccountApi(signedIn({ online: false, message: '网络不可用' }))
     const pinia = boot(createPinia())
     const router = makeRouter()
@@ -128,6 +139,20 @@ describe('App.vue 登录门', () => {
     const w = mountApp(pinia, router)
     await vi.waitFor(() => expect(w.find('aside.side').exists()).toBe(true))
     expect(router.currentRoute.value.path).toBe('/home')
+  })
+
+  it('启动时先跑门控：门控判定未登录就不进主界面', async () => {
+    const api = installAccountApi(signedIn())
+    // 门控把状态打成未登录（未开启自动登录 → 每次打开都要重新登录）
+    api.cloudPrepareBoot = vi.fn(async () => signedOut({ message: '请登录' }))
+    api.cloudStatus = vi.fn(async () => signedOut({ message: '请登录' }))
+    const pinia = boot(createPinia())
+    const router = makeRouter()
+
+    const w = mountApp(pinia, router)
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/auth'))
+    expect(api.cloudPrepareBoot).toHaveBeenCalled()
+    expect(w.find('aside.side').exists()).toBe(false)
   })
 
   it('登出后立即回到 /auth 并撤掉侧边栏', async () => {

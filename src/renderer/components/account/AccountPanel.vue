@@ -6,9 +6,14 @@ import { maskEmail } from '../../../shared/account'
 import type { CloudSummary } from '../../../shared/cloud'
 import { friendlyError, friendlyOk } from '../../utils/message'
 import { useAuthStore } from '../../stores/auth'
+import { useSettingsStore } from '../../stores/settings'
 
 /** 已登录面板：账号卡 + 修改密码 + 云端同步 + 退出登录 */
 const auth = useAuthStore()
+const settings = useSettingsStore()
+
+/** 本机是否开启了「自动登录」：决定下次打开软件还要不要输密码 */
+const autoLoginOn = computed<boolean>(() => Number(settings.settings.cloudAutoLogin ?? 0) === 1)
 
 const local = ref<CloudSummary | null>(null)
 const working = ref(false)
@@ -142,7 +147,10 @@ async function signOut(): Promise<void> {
   if (working.value) return
   if (!signOutArmed.value) {
     signOutArmed.value = true
-    setMsg(false, '退出后本机将回到未登录状态，需要重新输入邮箱密码。再点一次确认。')
+    setMsg(
+      false,
+      '退出后本机将回到未登录状态，需要重新输入邮箱密码；本机保存的密码会被清除，自动登录也会关闭。再点一次确认。'
+    )
     return
   }
   signOutArmed.value = false
@@ -189,6 +197,16 @@ onMounted(refreshLocal)
         <span>本机内容</span>
         <b>{{ summaryText(local) }}</b>
       </div>
+      <div class="kv">
+        <span>自动登录</span>
+        <b>{{ autoLoginOn ? '已开启' : '未开启' }}</b>
+      </div>
+      <p class="tip dim small">
+        {{ autoLoginOn
+          ? '下次启动会用本机保存的邮箱和密码自动登录（需要联网）。'
+          : '每次打开软件都需要重新登录。想省事的话，登录时在登录页勾选「保存密码」和「自动登录」。' }}
+      </p>
+      <p class="tip dim small">退出登录会一并清除本机保存的密码并关闭自动登录。</p>
 
       <div class="actions">
         <button class="m-btn" @click="changing = !changing">
@@ -209,7 +227,9 @@ onMounted(refreshLocal)
       <p class="tip">
         同步是整包覆盖，不是合并：保存 = 用本机覆盖云端；恢复 = 用云端覆盖本机（恢复前会自动做一份本地备份）。
       </p>
-      <p v-if="!auth.online" class="tip dim">当前网络不可用，云端读写已暂停；本地功能不受影响。</p>
+      <p v-if="!auth.online" class="tip dim">
+        当前网络不可用，云端读写已暂停。注意：下次启动仍需重新登录（除非已开启「自动登录」且那时能联网）。
+      </p>
 
       <div class="actions">
         <button class="m-btn accent" :disabled="working" @click="push">保存到云端</button>
@@ -247,6 +267,10 @@ onMounted(refreshLocal)
 }
 .tip.dim {
   color: var(--txt3);
+}
+.tip.small {
+  font-size: 11.5px;
+  margin-bottom: 6px;
 }
 .who {
   display: flex;

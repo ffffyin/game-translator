@@ -30,6 +30,22 @@ const TABS: Array<{ key: Mode; label: string }> = [
 
 const rememberedEmail = computed<string>(() => settings.settings.cloudAccountEmail ?? '')
 const initialRemember = computed<boolean>(() => settings.settings.cloudRememberAccount !== 0)
+const initialSavePassword = computed<boolean>(() => Number(settings.settings.cloudSavePassword ?? 0) === 1)
+const initialAutoLogin = computed<boolean>(() => Number(settings.settings.cloudAutoLogin ?? 0) === 1)
+
+/**
+ * 离线就是不能用。
+ *
+ * 每次启动都需要重新登录，而登录必须联网 —— 所以断网时这里要说清楚「请联网后重试」，
+ * 不能再承诺「断网也能继续用」。唯一的例外是已经开启「自动登录」且本次自动登录
+ * 成功（那种情况根本走不到这个页面）。
+ */
+const offline = computed<boolean>(() => !auth.available || !auth.online)
+
+/** 启动门控带来的提示（如「自动登录失败…」）：只在确实还没登录时才显示 */
+const bootNotice = computed<string>(() =>
+  auth.signedIn ? '' : auth.bootMessage ?? ''
+)
 
 function toMode(next: Mode): void {
   notice.value = null
@@ -76,9 +92,11 @@ async function retryStatus(): Promise<void> {
           {{ retrying ? '重试中…' : '重试' }}
         </button>
       </div>
-      <p v-else-if="!auth.online" class="banner">
-        网络暂时不可用。若本机已保存登录状态，仍可继续操作，只是云端同步会暂停。
+      <p v-else-if="offline" class="banner">
+        离线状态下无法登录，请联网后重试。若不想每次都手动登录，登录后勾选「自动登录」即可在联网时自动进入。
       </p>
+      <!-- 自动登录失败了才出现：把原因说清楚，不许静默回到登录页 -->
+      <p v-if="bootNotice" class="banner">{{ bootNotice }}</p>
 
       <div class="tabs">
         <button
@@ -100,6 +118,8 @@ async function retryStatus(): Promise<void> {
         v-if="mode === 'login'"
         :remembered-email="rememberedEmail"
         :initial-remember="initialRemember"
+        :initial-save-password="initialSavePassword"
+        :initial-auto-login="initialAutoLogin"
         :show-links="false"
         @success="enterApp"
         @go-register="toMode('register')"

@@ -8,6 +8,7 @@ import {
 import type { CloudSession, WorkBuddyCloudClient } from '@tencent-ai/workbuddy-cloud-sdk'
 import type { Db } from './db-wrapper'
 import { SecureAuthStorage } from './cloud-storage'
+import { dpapiEncrypt, dpapiDecrypt, clearDpapiCache } from './crypto'
 import { buildSnapshot, applySnapshot } from './cloud-snapshot'
 import { createBackup } from './backup'
 import { invalidateTermCache } from './term-cache'
@@ -157,9 +158,25 @@ function isAuthFailure(e: unknown): boolean {
 }
 
 const AUTH_EXPIRED = '登录状态已失效，请重新登录'
-const NETWORK_DOWN = '网络不可用，暂时无法连接云端（本地功能不受影响）'
-/** 冷启动即断网、凭据还没过期时的兜底提示 */
-const OFFLINE_CACHED = '离线状态，已使用本机保存的登录凭据'
+const NETWORK_DOWN = '网络不可用，暂时无法连接云端'
+/**
+ * 断网且本次进程没有成功在线登录过时的提示。
+ *
+ * 现在的策略是**离线打不开软件**（为将来的授权/付费校验留出强制联网的口子）：
+ * 没有通过云端验证就没有会话，一律拦在登录页。旧版「凭本机会话离线放行」的
+ * 兜底已经废掉，别再往回改。
+ */
+const OFFLINE_NEED_LOGIN = '网络不可用，离线状态下无法登录，请联网后重试'
+/** 每次启动的默认落点：不开启自动登录就必须重新登录 */
+const PLEASE_SIGN_IN = '请登录'
+/** 自动登录失败（密码改过 / 账号异常 / 服务不可用）的统一提示 */
+const AUTO_LOGIN_FAILED = '自动登录失败，请重新输入密码'
+/** 保存的密码已经不对了（用户在别处改过密码）：把原因点明，别让人怀疑软件坏了 */
+const AUTO_LOGIN_FAILED_PASSWORD = '自动登录失败：保存的密码已失效，请重新输入密码'
+/** 自动登录时网络不通：原因必须说清，否则用户会以为账号出了问题 */
+const AUTO_LOGIN_OFFLINE = '网络不可用，无法自动登录，请联网后重试'
+/** 本机密码密文解不开（换电脑 / 换系统 / DPAPI 不可用时） */
+const AUTO_LOGIN_UNREADABLE = '自动登录失败：本机保存的密码已无法读取，请重新输入密码'
 const GENERIC_FAILURE = '操作失败，请稍后重试'
 const RATE_LIMITED = '发送太频繁，请 1 分钟后再试'
 const OTP_BACKEND_DOWN = '验证码服务暂时不可用，请稍后再试'
@@ -267,6 +284,20 @@ type AuthHttpResult = {
   error: RawAuthError | null
 }
 
+/**
+ * 本机账号小档案允许读写的键。
+ *
+ * 全部都是**本机键** —— 一个都不在 `CLOUD_SETTING_KEYS` 白名单里，不会随快照上云。
+ * 尤其是 `cloudSavedPassword`：那是 DPAPI 密文，一旦同步到云端等于把密码明文交出去。
+ */
+type LocalAccountKey =
+  | 'cloudNickname'
+  | 'cloudAccountEmail'
+  | 'cloudRememberAccount'
+  | 'cloudSavePassword'
+  | 'cloudAutoLogin'
+  | 'cloudSavedPassword'
+
 export class CloudService {
   private client: WorkBuddyCloudClient | null = null
   private storage: SecureAuthStorage | null = null
@@ -277,6 +308,17 @@ export class CloudService {
   // 一个进程只发一次 boot 流水：status() 会被界面反复轮询，每刷一次插一行
   // 会把「今日登录用户数」冲成虚高（同一人反复开机 = 多条）。
   private bootEventSent = false
+  /**
+   * 本次进程内是否发生过一次**成功的在线登录**（手动登录 / 注册 / 自动登录都算）。
+   *
+   * 这是「用户确实通过云端验证过」的唯一证据。判定能不能用软件只看它：
+   *  - 为真 + 之后掉线 → 仍算已登录（人刚验过身份，不该被一次抖动踢出去）；
+   *  - 为假 + 本机会话还在 → **一律按未登录处理**（每次启动都要重新登录）。
+   *
+   * 反过来不能只看「本机有没有会话文件」：那样只要不清凭据就能永久离线使用，
+   * 与「离线打不开软件」这条产品策略冲突。
+   */
+  private onlineLoginOk = false
 
   constructor(
     private readonly root: string,
@@ -342,7 +384,7 @@ export class CloudService {
 
   // ---------------- 本机账号小档案（纯展示 / 预填，不参与鉴权） ----------------
 
-  private readLocal(key: 'cloudNickname' | 'cloudAccountEmail' | 'cloudRememberAccount'): string {
+  private readLocal(key: LocalAccountKey): string {
     try {
       return readSetting(this.getDb(), key)
     } catch (e) {
@@ -351,15 +393,67 @@ export class CloudService {
     }
   }
 
-  private writeLocal(
-    key: 'cloudNickname' | 'cloudAccountEmail' | 'cloudRememberAccount',
-    value: string
-  ): void {
+  private writeLocal(key: LocalAccountKey, value: string): void {
     try {
       writeSetting(this.getDb(), key, value)
     } catch (e) {
       // 写不进去最多是「下次不预填」，绝不能因此让一次已经成功的登录变成失败
       log('WARN', `写入本机设置 ${key} 失败：` + errorText(e, '未知错误'))
+    }
+  }
+
+  // ---------------- 本机保存的密码（DPAPI 密文，绝不明文落盘） ----------------
+
+  /**
+   * 把密码加密后存进本机设置。
+   *
+   * 失败一律降级成「没有保存」：存密码只是便利功能，绝不能让一次已经成功的
+   * 登录被它拖成失败。同时把开关也拨回 0，避免界面显示「已保存」但取不出来。
+   */
+  private async savePasswordLocal(password: string): Promise<void> {
+    try {
+      const cipher = await dpapiEncrypt(password)
+      if (!cipher) throw new Error('DPAPI 返回了空密文')
+      this.writeLocal('cloudSavedPassword', cipher)
+      this.writeLocal('cloudSavePassword', '1')
+    } catch (e) {
+      log('WARN', '保存本机密码失败（已按未保存处理）：' + errorText(e, '未知错误'))
+      this.writeLocal('cloudSavedPassword', '')
+      this.writeLocal('cloudSavePassword', '0')
+    }
+  }
+
+  /**
+   * 清除本机保存的密码并关闭自动登录。
+   *
+   * 三个调用点，缺一个都是一致性漏洞：
+   *  1. 用户在登录页取消「保存密码」；
+   *  2. 退出登录（不清的话下次又自动登进来，等于退不掉）；
+   *  3. 修改密码成功（旧密码已失效，留着只会让下次自动登录必失败）。
+   */
+  private clearSavedPassword(): void {
+    this.writeLocal('cloudSavedPassword', '')
+    this.writeLocal('cloudSavePassword', '0')
+    this.writeLocal('cloudAutoLogin', '0')
+    // 解密缓存里可能还留着这条密文解出来的明文（纯内存），一并清掉
+    clearDpapiCache()
+  }
+
+  /**
+   * 取回本机保存的密码明文。
+   *
+   * @returns 空串=本机没存过；`null`=存过但解不出来（换电脑 / 换 Windows 用户 /
+   *          DPAPI 被安全软件拦了）。这两者必须分开：前者是正常状态，后者要清密文。
+   */
+  private async readSavedPassword(): Promise<string | null> {
+    const cipher = this.readLocal('cloudSavedPassword').trim()
+    if (!cipher) return ''
+    try {
+      return await dpapiDecrypt(cipher)
+    } catch (e) {
+      // 日志里只说「读不出来」，绝不能带密文或明文
+      log('WARN', '读取本机保存的密码失败：' + errorText(e, '未知错误'))
+      return null
     }
   }
 
@@ -369,63 +463,22 @@ export class CloudService {
   }
 
   /**
-   * 冷启动 + 断网时的兜底：直接读本机凭据文件里 SDK 存的那份会话。
+   * 只清本机凭据与登录态，**不触碰服务端会话**。
    *
-   * 适用场景：进程刚起来、内存缓存还是空的，而 token 恰好进入了续期窗口
-   * （EXPIRY_MARGIN_MS = 90s）。此时 SDK 的 getSession() 会去续期、失败，然后
-   * **不报错地返回 null**（它刻意保留了本地会话）。登录是强制的，若这里跟着
-   * 判成未登录，断网就等于软件打不开。
+   * 与 `signOut()` 的区别就在这一点：启动重置、自动登录失败后的收敛都只该
+   * 清本地（调用远端 signOut 会让「断网启动」这种最常见场景直接卡住）。
    *
-   * ⚠️ 只用于「我是谁」的展示与放行：不伪造会话、不回写 storage、不改 SDK 的
-   * 续期冷却。云端读写该失败还是会失败，界面会如实显示 online:false。
+   * 清不掉文件也要把内存态置为未登录 —— 登出的语义是「不能再用」，不是文件必须消失。
    */
-  private localSessionIdentity(): { userId: string | null; email: string | null; expiresAt: number } | null {
-    if (!this.storage) return null
-    // 键名不写死前缀：从 SDK 实际落过的键里挑（实测为
-    // `workbuddy-cloud.session.<publishableKey>`，见 cloud-storage.keys() 的注释）
-    const key = this.storage
-      .keys()
-      .find((k) => k.includes('session') && k.endsWith(CLOUD_PUBLISHABLE_KEY))
-    if (!key) return null
-    const raw = this.storage.getItem(key)
-    if (!raw) return null
+  private async clearLocalSession(message: string): Promise<CloudStatus> {
     try {
-      const s = JSON.parse(raw) as Partial<CloudSession>
-      return {
-        expiresAt: typeof s.expiresAt === 'number' ? s.expiresAt : 0,
-        userId: typeof s.user?.id === 'string' ? s.user.id : null,
-        email: typeof s.user?.email === 'string' ? s.user.email : null
-      }
+      await this.storage?.wipe()
     } catch (e) {
-      log('WARN', '解析本机会话凭据失败：' + errorText(e, '未知错误'))
-      return null
+      log('WARN', '清理本机登录凭据失败（仍按未登录处理）：' + errorText(e, '未知错误'))
     }
-  }
-
-  /**
-   * 冷启动即断网的兜底：本机凭据还没过期就按「已登录 + online:false」放行。
-   *
-   * 登录是强制的，这里不放行的话「断网」就等于「软件打不开」。拿不到有效凭据
-   * 返回 null，由调用方按未登录处理。结果会写回 `cached`，后续刷新直接走缓存。
-   */
-  private offlineFromLocalCredential(): CloudStatus | null {
-    const local = this.localSessionIdentity()
-    if (!local || local.expiresAt <= Date.now()) return null
-    const offline: CloudStatus = {
-      available: true,
-      signedIn: true,
-      userId: local.userId,
-      email: local.email,
-      phone: null,
-      accountName: this.localAccountName(),
-      remoteUpdatedAt: null,
-      remoteSummary: null,
-      online: false,
-      message: OFFLINE_CACHED
-    }
-    log('INFO', '断网冷启动，已使用本机保存的登录凭据放行')
-    this.cached = offline
-    return offline
+    this.onlineLoginOk = false
+    this.cached = this.anonymous(message)
+    return this.cached
   }
 
   private localAccountName(): string | null {
@@ -464,11 +517,17 @@ export class CloudService {
   }
 
   /**
-   * 读登录态 + 云端概况。断网时回退到内存快照，界面不会退化成「未登录」。
+   * 读登录态 + 云端概况。
+   *
+   * 判定原则（2026-10-09 起生效，取代旧的「离线兜底」）：
+   *  **每次启动都需要重新登录；离线打不开软件。**
+   *  只有「本次进程内成功在线登录过」（`onlineLoginOk`）才可能得到 signedIn=true。
+   *  唯一例外是自动登录开关打开且本次自动登录真的拿到了云端会话 —— 那也是一次
+   *  真实的在线登录，只是不需要用户动手。
    *
    * 这里刻意只做一件事：它是「已登录」结论的唯一公共出口，boot 流水就挂在这里。
-   * status() 有多条分支会走到 signedIn=true（会话分支 / 缓存分支 / 本机凭据兜底），
-   * 在每条分支里各插一次既容易漏也容易重复，挂在出口上一处覆盖全部。
+   * status() 有多条分支会走到 signedIn=true，在每条分支里各插一次既容易漏也容易
+   * 重复，挂在出口上一处覆盖全部。
    */
   async status(): Promise<CloudStatus> {
     const s = await this.readStatus()
@@ -476,10 +535,101 @@ export class CloudService {
     return s
   }
 
-  /** status() 的实现本体：只判定登录态，不碰埋点。 */
-  private async readStatus(): Promise<CloudStatus> {
+  /**
+   * 启动门控：渲染层起来后**第一个**调用的云端接口，决定这一趟能不能直接进软件。
+   *
+   * 规则（对应「每次打开都要重新登录，但可以选择保存密码和自动登录」）：
+   *  1. 未开启 `cloudAutoLogin` → 清掉本机会话，返回未登录。即使会话没过期也清，
+   *     这就是「每次打开都停在登录页」的实现方式；
+   *  2. 开启但缺邮箱或缺密码密文 → 关掉自动登录，返回未登录；
+   *  3. 密文解不开（换机器 / 换系统 / DPAPI 不可用）→ 清掉密文与开关再返回未登录，
+   *     否则每次启动都会白试一次，永远进不去也永远不报错；
+   *  4. 有凭据 → **走真实网络**调 signIn。成功才算已登录；断网 / 密码改过 / 任何
+   *     失败都回登录页，并把原因说清楚（断网和「密码失效」是两回事）。
+   *
+   * ⚠️ 全程只清本地，不调远端 signOut：本方法最常见的触发场景恰恰是断网启动。
+   */
+  async prepareBoot(): Promise<CloudStatus> {
     // 初始化失败时再给一次机会：DPAPI 解密要走一次 PowerShell，冷启动偶发超时/被杀，
     // 若就这么把"云端不可用"钉死，用户会一直登不进去。重试仍有节流（见 retryInit）。
+    if (!this.client) await this.retryInit()
+    if (!this.client) return this.unavailable()
+
+    if (this.readLocal('cloudAutoLogin') !== '1') {
+      return this.clearLocalSession(PLEASE_SIGN_IN)
+    }
+
+    const email = this.readLocal('cloudAccountEmail').trim()
+    const cipher = this.readLocal('cloudSavedPassword').trim()
+    if (!email || !cipher) {
+      // 开关开着却没有凭据（用户清过数据 / 只勾了开关就退出）：别反复空转
+      this.writeLocal('cloudAutoLogin', '0')
+      return this.clearLocalSession(PLEASE_SIGN_IN)
+    }
+
+    const password = await this.readSavedPassword()
+    if (password === null) {
+      this.clearSavedPassword()
+      return this.clearLocalSession(AUTO_LOGIN_UNREADABLE)
+    }
+    if (!password) {
+      this.writeLocal('cloudAutoLogin', '0')
+      return this.clearLocalSession(PLEASE_SIGN_IN)
+    }
+
+    // 自动登录隐含保存密码：这里显式传 true，避免它被下一次手动登录的开关带偏
+    const r = await this.signIn({
+      email,
+      password,
+      remember: true,
+      savePassword: true,
+      autoLogin: true
+    })
+    if (r.ok) {
+      log('INFO', '自动登录成功，已进入软件：' + this.redactEmail(email))
+      return r.status
+    }
+    log('WARN', `自动登录失败（${r.message}），已回到登录页`)
+    return this.clearLocalSession(this.autoLoginFailure(r.message))
+  }
+
+  /**
+   * 登录框预填用的密码明文（**只进内存，不落盘、不进日志**）。
+   *
+   * 刻意只在「保存密码开着、自动登录没开」时才返回：开着自动登录的话启动就该直接
+   * 登进去了，真停在登录页说明自动登录刚失败（断网 / 密码失效），此时把密码摊在
+   * 界面上既没用也不安全。
+   *
+   * @returns 密码明文；不满足条件或密文解不开时返回空串。
+   */
+  async takeSavedPassword(): Promise<string> {
+    if (this.readLocal('cloudSavePassword') !== '1') return ''
+    if (this.readLocal('cloudAutoLogin') === '1') return ''
+    const pwd = await this.readSavedPassword()
+    return pwd ?? ''
+  }
+
+  /**
+   * 用户在界面上取消「保存密码」：立刻删掉本机密文并关掉自动登录。
+   *
+   * 单独开一个接口而不复用 signIn 的入参，是因为取消勾选这个动作**不一定**伴随一次
+   * 登录 —— 勾掉就必须马上生效，本机不能留残余密文。
+   */
+  forgetSavedPassword(): CloudSimpleResult {
+    this.clearSavedPassword()
+    return { ok: true, message: '已清除本机保存的密码' }
+  }
+
+  /** 把自动登录的失败原因翻译成人话：断网和「密码失效」对用户是完全不同的两件事 */
+  private autoLoginFailure(raw: string): string {
+    if (!raw) return AUTO_LOGIN_FAILED
+    if (raw === NETWORK_DOWN || raw.includes('网络不可用')) return AUTO_LOGIN_OFFLINE
+    if (raw === BAD_CREDENTIALS) return AUTO_LOGIN_FAILED_PASSWORD
+    return AUTO_LOGIN_FAILED
+  }
+
+  /** status() 的实现本体：只判定登录态，不碰埋点。 */
+  private async readStatus(): Promise<CloudStatus> {
     if (!this.client) await this.retryInit()
     if (!this.client) return this.unavailable()
     let session: CloudSession | null = null
@@ -489,13 +639,13 @@ export class CloudService {
       session = r.data
     } catch (e) {
       if (isNetworkish(e)) {
-        // 有缓存就带缓存返回，但必须把 online 打成 false —— 界面靠它显示
-        // 「云端暂时不可用」，而 signedIn 保持 true 才不会把人锁在门外。
-        if (this.cached?.signedIn) {
+        // 掉线放行**只**留给「本次已经在线登录成功过」的情况：人刚验过身份，
+        // 不该被一次网络抖动挡在门外。除此之外断网就是未登录。
+        if (this.cached?.signedIn && this.onlineLoginOk) {
           return { ...this.cached, online: false, message: NETWORK_DOWN }
         }
-        if (this.cached) return { ...this.cached, online: false }
-        return this.offlineFromLocalCredential() ?? this.anonymous(NETWORK_DOWN, false)
+        this.cached = this.anonymous(OFFLINE_NEED_LOGIN, false)
+        return this.cached
       }
       log('WARN', '读取云端会话失败：' + errorText(e, '未知错误'))
       return this.anonymous(describe(e, '读取登录状态失败'))
@@ -504,14 +654,19 @@ export class CloudService {
     if (!session) {
       // ⚠️ 断网时 SDK 的 getSession() 会返回 {data:null, error:null} 而**不报错**
       // （续期失败但本地会话仍在，见 SDK session-manager.onRefreshFailed）。
-      // 这里若直接判成未登录，一次网络抖动就会把已登录用户踢下线 —— 登录是强制的，
-      // 那等于软件直接不可用。所以缓存里明明是已登录，就优先信缓存，只标 offline。
-      if (this.cached?.signedIn) {
+      // 同样只在「本次在线登录成功过」时才信缓存。
+      if (this.cached?.signedIn && this.onlineLoginOk) {
         return { ...this.cached, online: false, message: NETWORK_DOWN }
       }
-      const offline = this.offlineFromLocalCredential()
-      if (offline) return offline
-      this.cached = this.anonymous('未登录')
+      this.cached = this.anonymous(this.onlineLoginOk ? '未登录' : PLEASE_SIGN_IN)
+      return this.cached
+    }
+
+    // 本机会话还在、但本次启动没有一次成功的在线登录 → 一律按未登录处理。
+    // 这是「每次打开都要重新登录」的最后一道闸：SDK 内存里可能还留着上次那份
+    // 会话（storage 被 wipe 后它不一定同步清掉），只看 session 非空会漏过去。
+    if (!this.onlineLoginOk) {
+      this.cached = this.anonymous(PLEASE_SIGN_IN)
       return this.cached
     }
 
@@ -758,12 +913,25 @@ export class CloudService {
       if (!(await this.finalizeSignIn(email))) {
         return fail('登录成功但无法建立会话，请重试')
       }
+      // 走到这里就是一次真正的云端验证：之后即使掉线也认这个身份
+      this.onlineLoginOk = true
+
       const remember = input?.remember === true
+      // 自动登录必须有密码，所以勾了它就等同于勾了「保存密码」
+      const autoLogin = input?.autoLogin === true
+      const savePassword = autoLogin || input?.savePassword === true
+
       this.writeLocal('cloudRememberAccount', remember ? '1' : '0')
       // 不记住就立刻清掉邮箱：勾选项取消后本机不该继续留着账号标识
       if (!remember) this.writeLocal('cloudAccountEmail', '')
+      // 不记住邮箱就没有自动登录的凭据（不知道该用哪个账号登），连带清掉密码与开关
+      if (!remember || !savePassword) this.clearSavedPassword()
+      else await this.savePasswordLocal(password)
+      this.writeLocal('cloudAutoLogin', autoLogin && savePassword && remember ? '1' : '0')
+
       // 纯统计，失败也不许拖累这次登录
       void this.recordEvent('login')
+      // ⚠️ 日志里只出现脱敏邮箱，密码一个字都不许打
       log('INFO', '云端登录成功：' + this.redactEmail(email))
       return { ok: true, message: '登录成功', status: await this.status() }
     } catch (e) {
@@ -818,6 +986,10 @@ export class CloudService {
       }
       this.writeLocal('cloudNickname', nickname)
       this.writeLocal('cloudRememberAccount', '1')
+      // 注册即登录：同样是一次真实的云端验证，掉线后要认这个身份
+      this.onlineLoginOk = true
+      // 注册不替用户打开「保存密码 / 自动登录」—— 那两个必须由他自己勾选
+      this.clearSavedPassword()
       // 纯统计，失败也不许拖累这次注册（账号已经建好了）
       void this.recordEvent('register')
       log('INFO', '云端注册成功：' + this.redactEmail(email))
@@ -878,7 +1050,18 @@ export class CloudService {
     // 第三步：用自己的 signIn 登录，不走 SDK 的自动登录闭包。
     // 登录失败也**不能**报失败 —— 密码确实已经改了，报失败会让用户以为没改成功，
     // 然后再点一次「忘记密码」，白白吃掉一次发码额度。
-    const signed = await this.signIn({ email, password: newPassword, remember: true })
+    //
+    // 保存密码 / 自动登录按**本机已有的开关**走：找回密码是应急入口，不该顺手替
+    // 用户打开「保存密码」。只有他本来就开着自动登录，才把新密码回写进去，
+    // 否则下次启动还会拿旧密码去自动登录、必然失败。
+    const autoLogin = this.readLocal('cloudAutoLogin') === '1'
+    const signed = await this.signIn({
+      email,
+      password: newPassword,
+      remember: true,
+      savePassword: autoLogin,
+      autoLogin
+    })
     if (signed.ok) {
       log('INFO', '密码重置成功并已自动登录：' + this.redactEmail(email))
       return { ok: true, message: '密码已重置，已自动登录', status: signed.status }
@@ -909,8 +1092,13 @@ export class CloudService {
       if (r.error) return fail(r.error)
       // 保持登录态：只把（可能换过的）会话落盘，不清凭据、不登出
       await this.storage?.flush()
-      log('INFO', '密码修改成功，已保持登录态')
-      return { ok: true, message: '密码已修改' }
+      // 旧密码此刻已经失效：本机保存的那份留着只会让下次自动登录必然失败
+      this.clearSavedPassword()
+      log('INFO', '密码修改成功，已保持登录态（已清除本机保存的密码）')
+      return {
+        ok: true,
+        message: '密码已修改，已清除本机保存的密码，如需自动登录请重新登录并勾选'
+      }
     } catch (e) {
       return fail(e)
     }
@@ -925,9 +1113,13 @@ export class CloudService {
       log('WARN', '云端登出请求失败（仍会清理本机凭据）：' + errorText(e, '未知错误'))
     }
     await this.storage?.wipe()
-    // 昵称是纯展示数据，清了没意义（下次登录还要重新填）；邮箱由 remember 开关决定去留
+    // 昵称是纯展示数据，清了没意义（下次登录还要重新填）；邮箱由 remember 开关决定去留。
+    // 保存的密码与自动登录**必须**一起清：否则用户点退出，下次启动又被自动登进来，
+    // 等于永远退不掉。
+    this.clearSavedPassword()
+    this.onlineLoginOk = false
     this.cached = this.anonymous('已退出登录')
-    return { ok: true, message: '已退出登录' }
+    return { ok: true, message: '已退出登录，本机保存的密码已清除' }
   }
 
   // ---------------- 配置快照 ----------------

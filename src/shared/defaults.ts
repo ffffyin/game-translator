@@ -19,6 +19,30 @@ export interface AppSettings {
   cloudAccountEmail: string // 「记住账号」时保留的邮箱
   cloudRememberAccount: number // 0 | 1：是否记住邮箱
   /**
+   * 0 | 1：是否把登录密码保存在本机（默认 0）。
+   *
+   * 存的只是**开关**，不是密码。密码本体在 `cloudSavedPassword` 里，且那是
+   * DPAPI 密文（base64）。渲染层只能写这个开关，绝不许直接写密文那个键。
+   *
+   * 本机键：绝不能进 CLOUD_SETTING_KEYS，密文一旦上云等于密码明文泄漏。
+   */
+  cloudSavePassword: number
+  /**
+   * 0 | 1：启动时用保存的邮箱 + 密码自动登录（默认 0）。
+   *
+   * 默认 0 是「每次打开都要重新登录」这条产品策略的载体：**不开启自动登录时，
+   * 启动一律停���登录页**，本机会话即使没过期也会被清掉。
+   * 开启它隐含必须先开 `cloudSavePassword` —— 没有密码就无法自动登录。
+   */
+  cloudAutoLogin: number
+  /**
+   * DPAPI 加密后的密码密文（base64）。**只能由主进程读写**，渲染层只碰开关。
+   *
+   * 明文永不落盘：写进来之前必过 `dpapiEncrypt`。换电脑 / 换 Windows 用户后
+   * 这段密文解不开，此时主进程会清掉它并关掉自动登录，不会卡在反复重试里。
+   */
+  cloudSavedPassword: string
+  /**
    * 0 | 1：是否把模型配置（含 API Key **明文**）随快照上传到云端。
    *
    * 默认 0，且**只能由用户显式打开**。开关为 1 时 API Key 会以明文离开本机 ——
@@ -48,6 +72,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   cloudNickname: '',
   cloudAccountEmail: '',
   cloudRememberAccount: 1,
+  cloudSavePassword: 0,
+  cloudAutoLogin: 0,
+  cloudSavedPassword: '',
   cloudSyncApi: 0
 }
 

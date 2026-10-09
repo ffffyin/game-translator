@@ -33,6 +33,8 @@ onMounted(async () => {
       <AccountLoginForm
         :remembered-email="settings.settings.cloudAccountEmail ?? ''"
         :initial-remember="settings.settings.cloudRememberAccount !== 0"
+        :initial-save-password="Number(settings.settings.cloudSavePassword ?? 0) === 1"
+        :initial-auto-login="Number(settings.settings.cloudAutoLogin ?? 0) === 1"
         :show-links="false"
       />
     </section>

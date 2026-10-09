@@ -132,6 +132,20 @@ export interface AccountSignInInput {
   password: string
   /** 是否记住账号：勾选后本机保留邮箱明文，下次进登录框自动填充 */
   remember: boolean
+  /**
+   * 是否把密码用 DPAPI 加密保存在本机（默认 false）。
+   *
+   * 存的是密文，不是明文；且只能由主进程写入，渲染层只传这个开关。
+   * 取消勾选时主进程会立刻删除已存的密文，本机不留残余。
+   */
+  savePassword?: boolean
+  /**
+   * 是否开启「下次启动自动登录」（默认 false）。
+   *
+   * 自动登录必须有密码可用，所以主进程里 `autoLogin=true` 会**隐含**
+   * `savePassword=true` —— 只勾自动登录而不存密码是做不到的。
+   */
+  autoLogin?: boolean
 }
 
 export interface AccountSignUpInput {

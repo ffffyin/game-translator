@@ -19,9 +19,12 @@ const router = createRouter({
 /**
  * 登录门：不登录不允许使用软件。
  *
- * 判定只看「本机有没有有效会话」（auth.signedIn），**不看网络** ——
- * 断网时主进程回传的仍是 signedIn=true + online=false，用户照常使用，只有云端读写被拦。
- * 反过来说，只有真的没有会话才会被送到 /auth。
+ * 判定只看 auth.signedIn —— 而主进程只有在「本次启动真的通过云端验证过」时才会给出
+ * signedIn=true（手动登录 / 注册 / 自动登录成功都算）。这意味着：
+ *  - **每次启动都需要重新登录**，除非开了「自动登录」且本次自动登录成功；
+ *  - **离线打不开软件**：没通过云端验证就没有会话，一律停在 /auth。
+ * 唯一会看到 signedIn=true + online=false 的情形，是本次已经登录成功后中途掉线
+ * （人刚验过身份，不该被一次网络抖动挡在门外）。
  */
 export function authGuard(to: RouteLocationNormalized): boolean | { path: string } {
   const auth = useAuthStore()
