@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { useModelsStore } from '../stores/models'
+import { useAuthStore } from '../stores/auth'
+
 const models = useModelsStore()
+// 保险：导航条属于「登录后」的界面，App.vue 已经不渲染它，
+// 这里再挡一道防止以后有人把它挪到别处时漏掉登录门
+const auth = useAuthStore()
 
 const nav = [
   {
@@ -42,7 +47,7 @@ const nav = [
 </script>
 
 <template>
-  <aside class="side">
+  <aside v-if="auth.signedIn" class="side">
     <div class="logo">
       <span class="lg">译</span>
       <b>游戏翻译助手</b>

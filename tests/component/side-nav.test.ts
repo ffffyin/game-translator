@@ -2,9 +2,11 @@
 import { mount } from '@vue/test-utils'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { readFileSync } from 'fs'
-import { createPinia } from 'pinia'
+import { createPinia, setActivePinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import SideNav from '../../src/renderer/components/SideNav.vue'
+import { useAuthStore } from '../../src/renderer/stores/auth'
+import type { CloudStatus } from '../../src/shared/cloud'
 
 // Vitest 默认不注入组件 CSS，直接读取 SFC 源码中的 style 块做断言
 const styleBlock = readFileSync('src/renderer/components/SideNav.vue', 'utf8').match(
@@ -14,8 +16,29 @@ const styleBlock = readFileSync('src/renderer/components/SideNav.vue', 'utf8').m
 // 应用全局样式，用于真实级联校验
 const baseCss = readFileSync('src/renderer/styles/base.css', 'utf8')
 
-function mountNav(attachToBody = false) {
+/**
+ * 侧边栏属于「登录后」才能看到的界面：App.vue 未登录时不渲染它，
+ * 组件内部也加了同样的登录判定作为保险，所以挂载前必须先喂一份登录态。
+ */
+function signedInStatus(): CloudStatus {
+  return {
+    available: true,
+    signedIn: true,
+    userId: 'uid-1',
+    email: 'me@example.com',
+    phone: null,
+    accountName: null,
+    remoteUpdatedAt: null,
+    remoteSummary: null,
+    online: true,
+    message: '已登录'
+  }
+}
+
+function mountNav(attachToBody = false, status: CloudStatus | null = signedInStatus()) {
   const pinia = createPinia()
+  setActivePinia(pinia)
+  useAuthStore().applyStatus(status)
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -53,6 +76,12 @@ describe('SideNav 侧边导航', () => {
     ])
     expect(items[2].attributes('href')).toContain('/phrases')
     expect(items[5].attributes('href')).toContain('/account')
+  })
+
+  it('未登录时整条导航不渲染（登录门在上层没兜住时这里还有一层保险）', () => {
+    const w = mountNav(false, null)
+    expect(w.find('aside.side').exists()).toBe(false)
+    expect(w.findAll('a.nav-item')).toHaveLength(0)
   })
 
   it('导航文字无下划线（基础态与 hover/focus/active 态都显式去除）', () => {
