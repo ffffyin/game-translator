@@ -19,6 +19,8 @@ const router = useRouter()
 
 const mode = ref<Mode>('login')
 const email = ref('')
+/** 来自子组件的跨标签提示（如「密码已重置，请用新密码登录」）：写在这里才不会被组件卸载带走 */
+const notice = ref<{ ok: boolean; text: string } | null>(null)
 
 const TABS: Array<{ key: Mode; label: string }> = [
   { key: 'login', label: '登录' },
@@ -30,7 +32,14 @@ const rememberedEmail = computed<string>(() => settings.settings.cloudAccountEma
 const initialRemember = computed<boolean>(() => settings.settings.cloudRememberAccount !== 0)
 
 function toMode(next: Mode): void {
+  notice.value = null
   mode.value = next
+}
+
+/** 重置成功但没自动登进去：带着提示回到登录页，用户不必回想刚才发生了什么 */
+function backToLogin(message?: string): void {
+  notice.value = message ? { ok: true, text: message } : null
+  mode.value = 'login'
 }
 
 async function enterApp(): Promise<void> {
@@ -84,7 +93,15 @@ async function enterApp(): Promise<void> {
         @success="enterApp"
         @go-login="toMode('login')"
       />
-      <AccountResetForm v-else :initial-email="email" @done="toMode('login')" @go-login="toMode('login')" />
+      <p v-if="notice" class="banner ok">{{ notice.text }}</p>
+
+      <AccountResetForm
+        v-else
+        :initial-email="email"
+        @signed-in="enterApp"
+        @done="backToLogin"
+        @go-login="toMode('login')"
+      />
 
       <p class="foot">登录标识是邮箱，昵称仅用于展示，不参与登录。</p>
     </div>
@@ -142,6 +159,11 @@ async function enterApp(): Promise<void> {
   border-radius: 8px;
   padding: 8px 12px;
   margin-bottom: 14px;
+}
+.banner.ok {
+  color: var(--teal);
+  background: var(--teal-soft);
+  border-color: var(--teal);
 }
 .tabs {
   display: flex;

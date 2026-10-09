@@ -9,17 +9,29 @@ import {
   validatePassword
 } from '../../../shared/account'
 import { friendlyError, friendlyOk } from '../../utils/message'
+import { useAuthStore } from '../../stores/auth'
 
-/** 忘记密码：邮箱验证码验证身份后直接设置新密码（不要求原密码） */
+/**
+ * 忘记密码：邮箱验证码验证身份后直接设置新密码（不要求原密码）。
+ *
+ * 主进程在重置成功后会顺手用新密码登录，因此这里必须按「是否已自动登录」分两条路走，
+ * 判定条件是 `r.ok && r.status.signedIn` —— 只看 ok 会把「重置成功但没登进去」
+ * 也当成成功，反过来只看 signedIn 又会在两种都失败时漏掉错误提示。
+ */
 const props = withDefaults(defineProps<{ initialEmail?: string }>(), { initialEmail: '' })
 
 const emit = defineEmits<{
-  done: []
+  /** 重置成功且主进程已用新密码自动登录：直接进入软件 */
+  'signed-in': []
+  /** 重置成功但未登录成功：带着提示文案回到登录页 */
+  done: [message: string]
   'go-login': []
 }>()
 
 /** 与注册链路一致：发码限流 1 条/分钟/邮箱 */
 const OTP_COOLDOWN_SECONDS = 60
+
+const auth = useAuthStore()
 
 const email = ref(props.initialEmail)
 const code = ref('')
@@ -123,17 +135,25 @@ async function submit(): Promise<void> {
       code: code.value.trim(),
       newPassword: password.value
     })
+    // 重置失败时 status 只是「当前是什么样」，不代表成功，直接报错即可
     if (!r.ok) {
       setMsg(false, friendlyError(r.message))
       return
     }
-    // 重置后不自动登录：服务端策略不定，统一让用户用新密码走一次登录
+    auth.applyStatus(r.status)
     password.value = ''
     confirm.value = ''
     code.value = ''
     verificationId.value = ''
+
+    if (r.status?.signedIn === true) {
+      // 主进程已经用新密码把会话建好了：直接进软件，不再让用户重输一遍
+      setMsg(true, friendlyOk(r.message, '密码已重置，已自动登录'))
+      emit('signed-in')
+      return
+    }
     setMsg(true, friendlyOk(r.message, '密码已重置，请用新密码登录'))
-    emit('done')
+    emit('done', friendlyOk(r.message, '密码已重置，请用新密码登录'))
   } catch (e) {
     setMsg(false, friendlyError(e instanceof Error ? e.message : ''))
   } finally {

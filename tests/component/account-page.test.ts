@@ -2,13 +2,17 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
-import { createPinia } from 'pinia'
+import { createPinia, setActivePinia } from 'pinia'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import AccountPage from '../../src/renderer/pages/AccountPage.vue'
+import AuthPage from '../../src/renderer/pages/AuthPage.vue'
 import AccountLoginForm from '../../src/renderer/components/account/AccountLoginForm.vue'
 import AccountRegisterForm from '../../src/renderer/components/account/AccountRegisterForm.vue'
 import AccountResetForm from '../../src/renderer/components/account/AccountResetForm.vue'
+import { useAuthStore } from '../../src/renderer/stores/auth'
 import {
   authFail,
+  authOk,
   installAccountApi,
   otpOk,
   signedIn,
@@ -22,10 +26,14 @@ function track(w: VueWrapper): VueWrapper {
   return w
 }
 
-function mountVm(component: unknown) {
+function mountVm(component: unknown, router: unknown = null) {
+  const pinia = createPinia()
+  // setActivePinia 让用例自己也能直接读同一份 store（断言登录态用）
+  setActivePinia(pinia)
+  const plugins = [pinia, ...(router ? [router as never] : [])]
   return track(
     mount(component as never, {
-      global: { plugins: [createPinia()] }
+      global: { plugins }
     })
   )
 }
@@ -416,5 +424,107 @@ describe('AccountResetForm 重置密码表单', () => {
 
     await vi.waitFor(() => expect(w.text()).toContain('两次输入的密码不一致'))
     expect(api.cloudResetPassword).not.toHaveBeenCalled()
+  })
+})
+
+describe('AccountResetForm 重置成功后的两条分支', () => {
+  async function fillAndSubmit(w: VueWrapper): Promise<void> {
+    await w.find('input[placeholder="注册时使用的邮箱"]').setValue('me@example.com')
+    await w.find('.send-btn').trigger('click')
+    await vi.waitFor(() => expect(w.find('.send-btn').text()).toContain('秒后重发'))
+    await w.find('input.otp').setValue('123456')
+    await w.find('input#reset-password').setValue('new123456')
+    await w.find('input#reset-password-confirm').setValue('new123456')
+    await submit(w, 'form.reset')
+  }
+
+  it('重置成功且主进程已自动登录：写入登录态，不再让用户重输一遍', async () => {
+    installAccountApi(signedOut(), {
+      cloudResetPassword: vi.fn(async () => authOk('密码已重置', signedIn()))
+    })
+    const w = mountVm(AccountResetForm)
+    await fillAndSubmit(w)
+
+    await vi.waitFor(() => expect(useAuthStore().signedIn).toBe(true))
+    expect(useAuthStore().email).toBe('me@example.com')
+    expect(w.emitted('signed-in')).toBeTruthy()
+    expect(w.emitted('done')).toBeFalsy()
+    expect(w.text()).not.toContain('请用新密码登录')
+  })
+
+  it('重置成功但没自动登进去：判定要看 status.signedIn，不能只看 ok', async () => {
+    installAccountApi(signedOut(), {
+      cloudResetPassword: vi.fn(async () => authOk('密码已重置，请用新密码登录', signedOut()))
+    })
+    const w = mountVm(AccountResetForm)
+    await fillAndSubmit(w)
+
+    await vi.waitFor(() => expect(w.emitted('done')).toBeTruthy())
+    expect(useAuthStore().signedIn).toBe(false)
+    expect(w.emitted('done')![0]).toEqual(['密码已重置，请用新密码登录'])
+    expect(w.emitted('signed-in')).toBeFalsy()
+  })
+
+  it('重置失败：只报错，不写登录态、不发跳转事件', async () => {
+    installAccountApi(signedOut(), {
+      cloudResetPassword: vi.fn(async () => authFail('验证码不正确'))
+    })
+    const w = mountVm(AccountResetForm)
+    await fillAndSubmit(w)
+
+    await vi.waitFor(() => expect(w.text()).toContain('验证码不正确'))
+    expect(useAuthStore().signedIn).toBe(false)
+    expect(w.emitted('signed-in')).toBeFalsy()
+    expect(w.emitted('done')).toBeFalsy()
+  })
+})
+
+describe('AuthPage 找到密码后的衔接', () => {
+  function makeAuthRouter() {
+    return createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', redirect: '/auth' },
+        { path: '/auth', name: 'auth', component: { template: '<div/>' } },
+        { path: '/home', name: 'home', component: { template: '<div/>' } }
+      ]
+    })
+  }
+
+  async function toResetPage(cloudResetPassword: unknown) {
+    installAccountApi(signedOut(), { cloudResetPassword })
+    const router = makeAuthRouter()
+    const w = mountVm(AuthPage, router)
+    await router.isReady()
+    await w.findAll('.tab').find((b) => b.text() === '找回密码')!.trigger('click')
+    await vi.waitFor(() => expect(w.find('form.reset').exists()).toBe(true))
+
+    await w.find('input[placeholder="注册时使用的邮箱"]').setValue('me@example.com')
+    await w.find('.send-btn').trigger('click')
+    await vi.waitFor(() => expect(w.find('.send-btn').text()).toContain('秒后重发'))
+    await w.find('input.otp').setValue('123456')
+    await w.find('input#reset-password').setValue('new123456')
+    await w.find('input#reset-password-confirm').setValue('new123456')
+    return { w, router }
+  }
+
+  it('自动登录成功：直接进 /home', async () => {
+    const { w, router } = await toResetPage(vi.fn(async () => authOk('密码已重置', signedIn())))
+    await submit(w, 'form.reset')
+
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/home'))
+  })
+
+  it('自动登录失败：停在 /auth 的登录页，并把「请用新密码登录」保留在页面上', async () => {
+    const { w, router } = await toResetPage(
+      vi.fn(async () => authOk('密码已重置，请用新密码登录', signedOut()))
+    )
+    await submit(w, 'form.reset')
+
+    // 提示写在 AuthPage 的 notice 上，表单切换标签不会把它带走
+    await vi.waitFor(() => expect(w.text()).toContain('密码已重置，请用新密码登录'))
+    expect(router.currentRoute.value.path).toBe('/auth')
+    expect(w.find('form.login').exists()).toBe(true)
+    expect(w.find('form.reset').exists()).toBe(false)
   })
 })
