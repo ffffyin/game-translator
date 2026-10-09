@@ -4,8 +4,47 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import AboutPage from '../../src/renderer/pages/AboutPage.vue'
 import { APP_VERSION } from '../../src/shared/version'
 import { GITHUB_URL, QQ_NUMBER, BILIBILI_URL, DOUYIN_URL } from '../../src/shared/links'
+import type { UpdateCheckResult, UpdateInfo } from '../../src/shared/update'
 
-function installApi() {
+const DOWNLOAD_URL = 'https://example.com/game-translator-1.0.1-setup.exe'
+
+function updateInfoOf(overrides: Partial<UpdateInfo> = {}): UpdateInfo {
+  return {
+    version: '1.0.1',
+    notes: ['修了 OCR 偶发漏字', '新增软件更新检查'],
+    publishedAt: '2026-10-09',
+    downloadUrl: DOWNLOAD_URL,
+    size: 138335923,
+    sha256: 'a'.repeat(64),
+    mandatory: false,
+    ...overrides
+  }
+}
+
+const LATEST: UpdateCheckResult = {
+  ok: true,
+  status: 'latest',
+  upToDate: true,
+  info: updateInfoOf({ version: APP_VERSION }),
+  message: `当前已是最新版本 v${APP_VERSION}`
+}
+
+const AVAILABLE: UpdateCheckResult = {
+  ok: true,
+  status: 'available',
+  upToDate: false,
+  info: updateInfoOf(),
+  message: '发现新版本 v1.0.1'
+}
+
+const FAILED: UpdateCheckResult = {
+  ok: false,
+  status: 'error',
+  upToDate: false,
+  message: '暂时无法检查更新：网络不可用或请求超时，软件可正常使用'
+}
+
+function installApi(updateResult: UpdateCheckResult = LATEST) {
   const api = {
     getDataDir: vi.fn(async () => 'C:\\Users\\t\\AppData\\Roaming\\GameTranslator'),
     openDataDir: vi.fn(async () => true),
@@ -21,7 +60,9 @@ function installApi() {
     ]),
     backupRestore: vi.fn(async () => undefined),
     resetToDefaults: vi.fn(async () => ({ ok: true, removed: ['translator.db'] })),
-    openExternal: vi.fn(async () => true)
+    openExternal: vi.fn(async () => true),
+    checkUpdate: vi.fn(async () => updateResult),
+    openDownload: vi.fn(async () => true)
   }
   ;(window as unknown as { api: typeof api }).api = api
   return api
@@ -115,15 +156,48 @@ describe('AboutPage 关于页', () => {
     expect(w.text()).toContain('71 条')
   })
 
-  it('检查更新：给出本地版本说明', async () => {
-    vi.useFakeTimers()
-    installApi()
-    const w = mount(AboutPage)
-    await vi.waitFor(() => expect(w.text()).toContain('检查软件更新'))
+  it('检查更新：已是最新时显示版本号与清单发布日期', async () => {
+    const api = installApi()
+    const w = await mountPage()
     await w.findAll('button').find((b) => b.text().includes('检查软件更新'))!.trigger('click')
-    await vi.advanceTimersByTime(700)
-    expect(w.text()).toContain('已是最新版本')
-    vi.useRealTimers()
+    expect(api.checkUpdate).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => expect(w.text()).toContain(`当前已是最新版本 v${APP_VERSION}`))
+    expect(w.text()).toContain('2026-10-09')
+  })
+
+  it('检查更新：有新版本时列出说明、体积并引导下载', async () => {
+    const api = installApi(AVAILABLE)
+    const w = await mountPage()
+    await w.findAll('button').find((b) => b.text().includes('检查软件更新'))!.trigger('click')
+    await vi.waitFor(() => expect(w.text()).toContain('发现新版本 v1.0.1'))
+
+    expect(w.text()).toContain('修了 OCR 偶发漏字')
+    expect(w.text()).toContain('新增软件更新检查')
+    expect(w.text()).toContain('131.9 MB')
+    expect(w.text()).toContain('a'.repeat(64))
+
+    await w.findAll('button').find((b) => b.text() === '前往下载')!.trigger('click')
+    expect(api.openDownload).toHaveBeenCalledWith(DOWNLOAD_URL)
+  })
+
+  it('检查更新：失败时给出原因并提供重试', async () => {
+    const api = installApi(FAILED)
+    const w = await mountPage()
+    await w.findAll('button').find((b) => b.text().includes('检查软件更新'))!.trigger('click')
+    await vi.waitFor(() => expect(w.text()).toContain('暂时无法检查更新'))
+    expect(w.text()).toContain('网络不可用或请求超时')
+
+    await w.findAll('button').find((b) => b.text() === '重试')!.trigger('click')
+    await vi.waitFor(() => expect(api.checkUpdate).toHaveBeenCalledTimes(2))
+  })
+
+  it('检查更新：主进程异常时兜底，不会卡在检查中', async () => {
+    const api = installApi()
+    api.checkUpdate.mockRejectedValueOnce(new Error('IPC 断了'))
+    const w = await mountPage()
+    await w.findAll('button').find((b) => b.text().includes('检查软件更新'))!.trigger('click')
+    await vi.waitFor(() => expect(w.text()).toContain('检查更新失败：IPC 断了'))
+    expect(w.text()).not.toContain('检查中…')
   })
 
   it('包含免责声明', async () => {

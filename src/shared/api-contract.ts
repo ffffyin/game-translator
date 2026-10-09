@@ -4,6 +4,7 @@ import type { HotkeyEntry } from './hotkeys'
 import type { RegionRect } from './region'
 import type { ResultData, RetranslateRequest } from './result'
 import type { LibView, TermView, TermInput } from './terms'
+import type { UpdateCheckResult } from './update'
 import type { PhraseView, PhrasePageView, PhrasePageInput } from './phrases'
 import type {
   AccountChangePasswordInput,
@@ -81,6 +82,10 @@ export interface ApiContract {  ping: () => Promise<string>
   openDataDir: () => Promise<boolean>
   getDataDir: () => Promise<string>
   openExternal: (url: string) => Promise<boolean>
+  /** 检查软件更新：拉远端清单比对版本，失败也按 result.message 展示，不抛 */
+  checkUpdate: () => Promise<UpdateCheckResult>
+  /** 用系统浏览器打开更新包下载地址 */
+  openDownload: (url: string) => Promise<boolean>
   backupList: () => Promise<BackupFile[]>
   backupCreate: () => Promise<BackupFile[]>
   backupRestore: (name: string) => Promise<void>

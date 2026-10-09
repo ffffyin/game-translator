@@ -44,6 +44,7 @@ export default defineConfig({
         'src/main/services/term-update.ts',
         'src/main/services/translate-prompt.ts',
         'src/main/services/translate.ts',
+        'src/main/services/updater.ts',
         'src/main/services/usage.ts',
         'src/shared/accelerator.ts',
         'src/shared/cloud.ts',
@@ -52,6 +53,7 @@ export default defineConfig({
         'src/shared/hotkeys.ts',
         'src/shared/providers.ts',
         'src/shared/theme.ts',
+        'src/shared/update.ts',
         'src/shared/version.ts'
       ],
       thresholds: {

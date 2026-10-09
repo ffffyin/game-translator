@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import PageHeader from '../components/PageHeader.vue'
 import { APP_VERSION } from '../../shared/version'
 import { AUTHOR_NAME, CONTACT_LINKS, type ContactLink, QQ_NUMBER } from '../../shared/links'
+import { formatBytes, type UpdateCheckResult } from '../../shared/update'
 import type { LibView } from '../../shared/terms'
 import type { BackupFile } from '../../shared/api-contract'
 
 const dataDir = ref('')
 const libs = ref<LibView[]>([])
 const checking = ref(false)
-const updateMsg = ref('')
+const updateResult = ref<UpdateCheckResult | null>(null)
+const downloadMsg = ref('')
 const backups = ref<BackupFile[]>([])
 const restoreTarget = ref('')
 const resetConfirm = ref(false)
@@ -84,14 +86,38 @@ async function openDataDir(): Promise<void> {
   await window.api.openDataDir()
 }
 
-// 第一版无远程更新服务器：只做本地版本确认并如实说明
-function checkAppUpdate(): void {
+// 「检查软件更新」：主进程拉远端静态清单比对版本号。
+// 不自动弹窗、不自动下载、不自动安装，只把结论摆在这里由用户决定。
+async function checkAppUpdate(): Promise<void> {
+  if (checking.value) return
   checking.value = true
-  updateMsg.value = ''
-  setTimeout(() => {
+  updateResult.value = null
+  downloadMsg.value = ''
+  try {
+    updateResult.value = await window.api.checkUpdate()
+  } catch (e) {
+    // 兜底：主进程已是「永不抛」设计，这里再挡一道，界面不至于卡在「检查中…」
+    updateResult.value = {
+      ok: false,
+      status: 'error',
+      upToDate: false,
+      message: `检查更新失败：${e instanceof Error ? e.message : String(e)}`
+    }
+  } finally {
     checking.value = false
-    updateMsg.value = `当前已是最新版本 v${APP_VERSION}（第一版未配置在线更新）`
-  }, 600)
+  }
+}
+
+const updateInfo = computed(() => updateResult.value?.info)
+const updateSizeText = computed(() => formatBytes(updateInfo.value?.size ?? 0))
+
+async function openDownload(): Promise<void> {
+  const url = updateInfo.value?.downloadUrl
+  if (!url) return
+  const opened = await window.api.openDownload(url)
+  downloadMsg.value = opened
+    ? '已在浏览器中打开下载页，安装包较大请耐心等待'
+    : '下载链接无效，已阻止打开；可前往官网手动下载'
 }
 
 onMounted(async () => {
@@ -135,7 +161,36 @@ onMounted(async () => {
       <button class="m-btn" :disabled="checking" @click="checkAppUpdate">
         {{ checking ? '检查中…' : '检查软件更新' }}
       </button>
-      <p v-if="updateMsg" class="update-msg">{{ updateMsg }}</p>
+
+      <p v-if="checking" class="update-msg">正在连接更新服务器…</p>
+
+      <div v-else-if="updateResult?.status === 'latest'" class="update-box latest">
+        <p class="update-title">当前已是最新版本 v{{ APP_VERSION }}</p>
+        <p v-if="updateInfo?.publishedAt" class="update-sub">
+          清单发布日期 {{ updateInfo.publishedAt }}
+        </p>
+      </div>
+
+      <div v-else-if="updateResult?.status === 'available' && updateInfo" class="update-box newer">
+        <p class="update-title">
+          发现新版本 v{{ updateInfo.version }}
+          <em v-if="updateInfo.mandatory" class="tag">建议尽快升级</em>
+        </p>
+        <p v-if="updateInfo.publishedAt" class="update-sub">发布日期 {{ updateInfo.publishedAt }}</p>
+        <ul v-if="updateInfo.notes.length" class="update-notes">
+          <li v-for="(n, i) in updateInfo.notes" :key="i">{{ n }}</li>
+        </ul>
+        <p v-if="updateSizeText" class="update-sub">安装包大小 {{ updateSizeText }}</p>
+        <p v-if="updateInfo.sha256" class="update-sha">SHA256：{{ updateInfo.sha256 }}</p>
+        <button class="m-btn accent" @click="openDownload">前往下载</button>
+        <p v-if="downloadMsg" class="update-sub">{{ downloadMsg }}</p>
+      </div>
+
+      <div v-else-if="updateResult?.status === 'error'" class="update-box failed">
+        <p class="update-title">暂时无法检查更新</p>
+        <p class="update-sub">{{ updateResult.message }}</p>
+        <button class="m-btn ghost" @click="checkAppUpdate">重试</button>
+      </div>
     </div>
 
     <div class="right-col">
@@ -218,8 +273,72 @@ onMounted(async () => {
 }
 .update-msg {
   font-size: 11.5px;
-  color: var(--teal);
+  color: var(--txt3);
   margin-top: 8px;
+}
+.update-box {
+  margin-top: 12px;
+  text-align: left;
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 11px 13px;
+}
+.update-box.latest .update-title {
+  color: var(--teal);
+}
+.update-box.newer .update-title {
+  color: var(--accent);
+}
+.update-box.failed .update-title {
+  color: var(--danger);
+}
+.update-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.update-title .tag {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.update-sub {
+  margin-top: 5px;
+  font-size: 11.5px;
+  color: var(--txt3);
+  line-height: 1.6;
+}
+.update-notes {
+  margin: 8px 0 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 3px;
+}
+.update-notes li {
+  font-size: 11.5px;
+  color: var(--txt2);
+  line-height: 1.65;
+}
+.update-sha {
+  margin-top: 6px;
+  font-size: 10.5px;
+  color: var(--txt3);
+  word-break: break-all;
+  font-family: ui-monospace, Consolas, 'Courier New', monospace;
+}
+.update-box .m-btn {
+  margin-top: 10px;
+}
+.update-box .m-btn.accent {
+  color: var(--accent);
+  border-color: var(--accent-line);
 }
 .logo {
   width: 64px;

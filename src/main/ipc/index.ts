@@ -12,6 +12,7 @@ import { HotkeyManager } from '../services/hotkey-manager'
 import { TermLibraryService } from '../services/term-library'
 import { buildExportJson, validateTermFile, importTermFile, type IoResult } from '../services/term-io'
 import { checkForUpdates, applyUpdates } from '../services/term-update'
+import { checkForUpdate } from '../services/updater'
 import { PhraseService } from '../services/phrases'
 import { testConnection } from '../services/translate'
 import { queryQuota } from '../services/quota'
@@ -82,6 +83,15 @@ export function registerIpc(
   handle.handle('app:getDataDir', () => root)
   // 用系统浏览器打开外链（只允许 http/https）
   handle.handle('app:openExternal', async (_e, url: string) => {
+    if (!isSafeExternalUrl(url)) return false
+    await shell.openExternal(url)
+    return true
+  })
+
+  // 软件更新：只做告知 + 引导下载（返回 UpdateCheckResult，失败也用返回值表达）
+  handle.handle('app:checkUpdate', () => checkForUpdate())
+  // 「前往下载」走系统浏览器；同样只放行 http/https
+  handle.handle('app:openDownload', async (_e, url: string) => {
     if (!isSafeExternalUrl(url)) return false
     await shell.openExternal(url)
     return true
