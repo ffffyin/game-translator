@@ -7,10 +7,11 @@ export const GITHUB_HANDLE = 'github.com/ffffyin'
 export const QQ_NUMBER = '316606176'
 
 // 官网首页与更新清单地址。
-// ⚠️ OFFICIAL_SITE_URL 目前是占位地址（OWNER/PLACEHOLDER 待替换为真实仓库），
 // 换域名只需改这一行：清单地址会自动跟上（UPDATE_MANIFEST_URL 由它拼出）。
 // 清单要求托管在支持 https 的静态地址上，返回 application/json，内容见 shared/update.ts。
-export const OFFICIAL_SITE_URL = 'https://OWNER.github.io/PLACEHOLDER'
+// ⚠️ 这个域名同时也是云端接口域名 —— 云端有来源白名单，只认这个域名（见 cloud.ts 的
+// fetchWithAuthOrigin）。官网部署在这里是刻意的：同源，所以网页能直接读云端统计。
+export const OFFICIAL_SITE_URL = 'https://game-translator.app.workbuddy.host'
 export const UPDATE_MANIFEST_URL = `${OFFICIAL_SITE_URL}/version.json`
 
 // 这两个主页地址很长（带 spm / 短链随机串），界面上只显示简称，点击才跳转
