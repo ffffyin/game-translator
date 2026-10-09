@@ -218,16 +218,15 @@ onMounted(async () => {
           <span>{{ fmtNum(b.tokens) }} tokens</span>
         </div>
         <div class="bar-track">
-          <div
-            class="bar"
-            :class="{ today: b.isToday }"
-            :style="{ height: barHeight(b.value) }"
-          ></div>
+          <div class="bar" :style="{ height: barHeight(b.value) }"></div>
         </div>
         <div class="bar-num" :class="{ today: b.isToday }">
           {{ b.value > 0 ? fmtNum(b.value) : '–' }}
         </div>
-        <div class="bar-label" :class="{ today: b.isToday }">{{ b.label }}</div>
+        <!-- 今天不再整根柱子染青（只有它一个是青的反而奇怪），改成一个小青点 + 加粗 -->
+        <div class="bar-label" :class="{ today: b.isToday }">
+          <i v-if="b.isToday" class="today-dot"></i>{{ b.label }}
+        </div>
       </div>
     </div>
 
@@ -373,7 +372,7 @@ onMounted(async () => {
 .chart {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
+  gap: 6px;
   padding-top: 6px;
 }
 .bar-col {
@@ -381,6 +380,13 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 6px 0 4px;
+  border-radius: 9px;
+  transition: background 0.12s ease;
+}
+/* 悬停整列给一点底，既表示可交互，也避免柱子细了之后鼠标不好瞄 */
+.bar-col:hover {
+  background: rgba(255, 255, 255, 0.035);
 }
 /* 悬停浮层：直接显示当天的次数 / 字符 / Tokens */
 .tt {
@@ -429,28 +435,25 @@ onMounted(async () => {
 .bar-col:last-child:hover .tt {
   transform: translateY(0);
 }
-.bar-col:hover .bar-track {
-  border-color: var(--accent);
-}
+/* 原来是 7 个 100px 宽的实心圆角方块 + width:100% 的柱子，看上去是一排大方块。
+   改成「只留一条基线 + 细柱居中」，柱子宽度固定，用量差异看得更清楚。 */
 .bar-track {
   width: 100%;
-  height: 110px;
-  background: var(--card2);
-  border: 1px solid transparent;
-  border-radius: 7px;
+  height: 104px;
   display: flex;
   align-items: flex-end;
-  overflow: hidden;
-  transition: border-color 0.12s ease;
+  justify-content: center;
+  border-bottom: 1px solid var(--line);
 }
 .bar-num {
   font-size: 10.5px;
   color: var(--txt3);
-  margin-top: 5px;
+  margin-top: 6px;
   min-height: 14px;
+  transition: color 0.12s ease;
 }
 .bar-num.today {
-  color: var(--teal);
+  color: var(--txt);
   font-weight: 700;
 }
 .chart-empty,
@@ -463,22 +466,40 @@ onMounted(async () => {
   color: var(--txt2);
 }
 .bar {
-  width: 100%;
+  /* 细柱：宽度固定而不是铺满整列，7 天并排时才不会变成一排大方块 */
+  width: 26px;
+  max-width: 56%;
   background: var(--accent);
-  border-radius: 6px 6px 0 0;
-  transition: height 0.3s ease;
+  border-radius: 6px 6px 3px 3px;
+  transition: height 0.3s ease, background 0.12s ease;
 }
-.bar.today {
+/* 悬停：柱子 + 数值 + 日期一起变青，任意一天都是，不再只有今天 */
+.bar-col:hover .bar {
   background: var(--teal);
+}
+.bar-col:hover .bar-num,
+.bar-col:hover .bar-label {
+  color: var(--teal);
+  font-weight: 700;
 }
 .bar-label {
   font-size: 10.5px;
   color: var(--txt3);
   margin-top: 5px;
+  transition: color 0.12s ease;
 }
 .bar-label.today {
-  color: var(--teal);
+  color: var(--txt);
   font-weight: 700;
+}
+.today-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: var(--teal);
+  vertical-align: 1px;
 }
 .mini-table {
   width: 100%;

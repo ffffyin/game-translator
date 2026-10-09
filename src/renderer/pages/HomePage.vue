@@ -351,20 +351,49 @@ onMounted(() => {
   padding: 6px 10px;
   font-size: 12.5px;
 }
+/* 色块之间必须显式给 gap：.sw 是 inline-block 按钮，没有 gap 时五个色块会紧贴成一整条，
+   只剩圆角处的暗角在视觉上把它们分开——看起来就是「挤在一起」。 */
+.swatches {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 2px 0;
+}
 .sw {
   width: 30px;
   height: 30px;
-  border-radius: 8px;
+  border-radius: 9px;
   border: 2px solid transparent;
   cursor: pointer;
+  /* 浅色块在深色底上会「发飘」，加一道内描边把它们收住 */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.sw:hover {
+  transform: translateY(-1px);
 }
 .sw.on {
   border-color: var(--txt);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1), 0 0 0 3px var(--card);
 }
 .custom {
   display: flex;
-  gap: 9px;
-  margin-top: 14px;
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 16px;
+}
+/* .m-input 的 width:100% 在 flex 行里等于 flex-basis:100%，会和按钮按比例一起收缩，
+   把「应用」压成两个字上下堆叠。这里把输入框改成可伸缩、按钮固定不收缩且禁止换行。 */
+.custom .m-input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+.custom .m-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  min-width: 68px;
 }
 .hk-list {
   display: grid;
