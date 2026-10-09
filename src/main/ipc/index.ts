@@ -1,7 +1,7 @@
 import type { BrowserWindow } from 'electron'
 import { shell, dialog, app } from 'electron'
-import { join } from 'path'
-import { writeFileSync, readFileSync } from 'fs'
+import { join, dirname } from 'path'
+import { writeFileSync, readFileSync, existsSync } from 'fs'
 import type { Db } from '../services/db'
 import { closeDb, getDb } from '../services/db'
 import { CloudService } from '../services/cloud'
@@ -13,6 +13,12 @@ import { TermLibraryService } from '../services/term-library'
 import { buildExportJson, validateTermFile, importTermFile, type IoResult } from '../services/term-io'
 import { checkForUpdates, applyUpdates } from '../services/term-update'
 import { checkForUpdate } from '../services/updater'
+import {
+  UpdateDownloader,
+  resolveDownloadDir,
+  type UpdateDownloadResult,
+  type UpdateProgress
+} from '../services/update-download'
 import { PhraseService } from '../services/phrases'
 import { testConnection } from '../services/translate'
 import { queryQuota } from '../services/quota'
@@ -96,6 +102,66 @@ export function registerIpc(
     if (!isSafeExternalUrl(url)) return false
     await shell.openExternal(url)
     return true
+  })
+
+  // ---- 应用内下载更新包 ----
+  // 上面那条浏览器下载留着给官网用；软件里点「立即更新」走下面这条，
+  // 用 Electron net 下载到本机（走系统代理），带进度，下来之后用户点一下就装上。
+  const updater = new UpdateDownloader()
+
+  /** 推进度前必须确认窗口还在：用户可能在下载中途把窗口关了 */
+  const pushProgress = (p: UpdateProgress): void => {
+    if (win.isDestroyed() || win.webContents.isDestroyed()) return
+    win.webContents.send('update:progress', p)
+  }
+
+  handle.handle(
+    'update:download',
+    async (_e, url: string, sha256: string, size: number): Promise<UpdateDownloadResult> => {
+      try {
+        return await updater.start({ url, sha256, expectedSize: size, onProgress: pushProgress })
+      } catch (err) {
+        // UpdateDownloader 自己已经不抛了，这里再兜一层：绝不让异常跨 IPC
+        return { ok: false, message: err instanceof Error ? err.message : '下载失败' }
+      }
+    }
+  )
+
+  handle.handle('update:cancelDownload', (): { ok: boolean } => {
+    updater.cancel()
+    return { ok: true }
+  })
+
+  /**
+   * 安装并重启：交给系统去跑安装包，然后立刻退出。
+   *
+   * 只允许跑下载目录里的文件——这是唯一一处会让别的进程在本机执行的地方，
+   * 收不住范围就等于给渲染层开了扇任意执行的门。
+   */
+  handle.handle('update:install', async (_e, path: string): Promise<UpdateDownloadResult> => {
+    try {
+      if (!path) return { ok: false, message: '安装包路径为空' }
+      if (!existsSync(path)) return { ok: false, message: '安装包不存在，请重新下载' }
+      const dir = resolveDownloadDir()
+      if (dirname(path) !== dir) return { ok: false, message: '只允许安装下载目录中的安装包' }
+      const err = await shell.openPath(path)
+      if (err) return { ok: false, message: `安装失败：${err}` }
+      // 立刻退出，别让软件挡在安装向导前面；安装包自己会拉起新版本
+      setTimeout(() => app.quit(), 300)
+      return { ok: true, path }
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : '安装失败' }
+    }
+  })
+
+  handle.handle('update:reveal', async (_e, path: string): Promise<{ ok: boolean; message?: string }> => {
+    try {
+      if (!path || !existsSync(path)) return { ok: false, message: '安装包不存在' }
+      shell.showItemInFolder(path)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : '打开失败' }
+    }
   })
 
   // 备份与恢复

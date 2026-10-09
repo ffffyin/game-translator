@@ -40,15 +40,6 @@ async function checkUpdateOnBoot(): Promise<void> {
   }
 }
 
-async function goUpdate(url: string): Promise<void> {
-  updatePrompt.value = null
-  try {
-    await window.api.openDownload(url)
-  } catch (e) {
-    console.warn('[update] 打开下载地址失败：', e)
-  }
-}
-
 async function skipUpdate(version: string): Promise<void> {
   updatePrompt.value = null
   try {
@@ -140,7 +131,6 @@ onMounted(async () => {
     <UpdatePromptDialog
       v-if="updatePrompt"
       :info="updatePrompt"
-      @update="goUpdate"
       @skip="skipUpdate"
       @later="laterUpdate"
     />

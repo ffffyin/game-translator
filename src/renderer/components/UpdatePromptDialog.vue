@@ -1,9 +1,11 @@
 <script setup lang="ts">
-// 启动时自动检查到新版本后弹出的三选一对话框。
+// 启动时自动检查到新版本后弹出的对话框。
 //
-// 组件本身是「哑」的：只负责展示与抛出用户的选择，打开下载链接、写跳过标记
-// 这些副作用都由 App.vue 处理 —— 它才有 settings store 与 IPC 的上下文。
+// 点击「立即更新」后不再关闭弹窗：下载、装包都在这一个框里走完，
+// 免得用户还得到「关于软件」页再点一遍。跳过 / 下次再说仍然交给 App.vue，
+// 因为写本机设置这件事只有它那边才有 settings store。
 import { computed } from 'vue'
+import { useUpdateDownloadStore } from '../stores/update-download'
 import { formatBytes, type UpdateInfo } from '../../shared/update'
 
 const props = defineProps<{
@@ -11,8 +13,6 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  // 「更新新版本」：带上下载地址，由父层用 shell.openExternal 打开
-  (e: 'update', downloadUrl: string): void
   // 「跳过此新版本并不再提醒」：带上要记住的版本号
   (e: 'skip', version: string): void
   // 「下次再说」：什么都不做，仅关闭
@@ -20,6 +20,13 @@ const emit = defineEmits<{
 }>()
 
 const sizeText = computed(() => formatBytes(props.info.size))
+
+// 与「关于软件」页共用同一份下载状态（同一个 Pinia store 实例）
+const dl = useUpdateDownloadStore()
+
+function startDownload(): void {
+  void dl.start(props.info.downloadUrl, props.info.sha256, props.info.size)
+}
 </script>
 
 <template>
@@ -38,11 +45,43 @@ const sizeText = computed(() => formatBytes(props.info.size))
 
       <p v-if="sizeText" class="sub">安装包大小 {{ sizeText }}</p>
 
-      <div class="modal-actions">
-        <button class="m-btn" @click="emit('skip', info.version)">跳过此版本</button>
-        <button class="m-btn" @click="emit('later')">下次再说</button>
-        <button class="m-btn accent" @click="emit('update', info.downloadUrl)">立即更新</button>
-      </div>
+      <!-- 下载中：只留一个取消，别让用户在这里误触「跳过」把进度丢了 -->
+      <template v-if="dl.phase === 'downloading'">
+        <div class="progress">
+          <i :style="{ width: dl.percent + '%' }"></i>
+        </div>
+        <p class="sub">正在下载…{{ dl.percent }}%</p>
+        <div class="modal-actions">
+          <button class="m-btn" @click="dl.cancel()">取消下载</button>
+        </div>
+      </template>
+
+      <!-- 下载完成 -->
+      <template v-else-if="dl.phase === 'done'">
+        <p class="done-tip">已下载到 {{ dl.path }}，点击下方按钮后软件会退出并启动安装程序</p>
+        <div class="modal-actions">
+          <button class="m-btn" @click="dl.reveal()">打开所在文件夹</button>
+          <button class="m-btn accent" @click="dl.install()">安装并重启</button>
+        </div>
+      </template>
+
+      <!-- 下载失败：给原因 + 重试，另外留一条关掉弹窗的退路 -->
+      <template v-else-if="dl.phase === 'error'">
+        <p class="err">{{ dl.message }}</p>
+        <div class="modal-actions">
+          <button class="m-btn" @click="emit('later')">下次再说</button>
+          <button class="m-btn accent" @click="startDownload">重试下载</button>
+        </div>
+      </template>
+
+      <!-- idle：三个选择 -->
+      <template v-else>
+        <div class="modal-actions">
+          <button class="m-btn" @click="emit('skip', info.version)">跳过此版本</button>
+          <button class="m-btn" @click="emit('later')">下次再说</button>
+          <button class="m-btn accent" @click="startDownload">立即更新</button>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -103,6 +142,33 @@ h4 {
   font-size: 12.5px;
   color: var(--txt2);
   line-height: 1.65;
+}
+.done-tip {
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: var(--txt2);
+  line-height: 1.6;
+  word-break: break-all;
+}
+.err {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--danger);
+  line-height: 1.6;
+}
+.progress {
+  margin-top: 14px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--card2);
+  overflow: hidden;
+}
+.progress i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.2s linear;
 }
 .modal-actions {
   display: flex;

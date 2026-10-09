@@ -27,6 +27,16 @@ const api: ApiContract = {
   openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
   checkUpdate: () => ipcRenderer.invoke('app:checkUpdate'),
   openDownload: (url: string) => ipcRenderer.invoke('app:openDownload', url),
+  updateDownload: (url, sha256, size) =>
+    ipcRenderer.invoke('update:download', url, sha256, size),
+  updateCancel: () => ipcRenderer.invoke('update:cancelDownload'),
+  updateInstall: (path) => ipcRenderer.invoke('update:install', path),
+  updateReveal: (path) => ipcRenderer.invoke('update:reveal', path),
+  onUpdateProgress: (cb) => {
+    const listener = (_e: unknown, payload: Parameters<typeof cb>[0]): void => cb(payload)
+    ipcRenderer.on('update:progress', listener)
+    return () => ipcRenderer.removeListener('update:progress', listener)
+  },
   backupList: () => ipcRenderer.invoke('backup:list'),
   backupCreate: () => ipcRenderer.invoke('backup:create'),
   backupRestore: (name: string) => ipcRenderer.invoke('backup:restore', name),

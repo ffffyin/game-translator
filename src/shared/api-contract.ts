@@ -75,6 +75,18 @@ export interface ResetResult {
   message?: string
 }
 
+/** 应用内下载安装包的结果：成功给落盘路径，失败给一句用户能看懂的原因 */
+export type UpdateDownloadResult =
+  | { ok: true; path: string }
+  | { ok: false; message: string; canceled?: boolean }
+
+/** 下载进度。total 为 0 表示服务器没给总大小（此时 percent 恒为 0） */
+export interface UpdateProgress {
+  received: number
+  total: number
+  percent: number
+}
+
 export interface ApiContract {  ping: () => Promise<string>
   startupRoute: string | undefined
   settingsGetAll: () => Promise<AppSettings>
@@ -84,8 +96,26 @@ export interface ApiContract {  ping: () => Promise<string>
   openExternal: (url: string) => Promise<boolean>
   /** 检查软件更新：拉远端清单比对版本，失败也按 result.message 展示，不抛 */
   checkUpdate: () => Promise<UpdateCheckResult>
-  /** 用系统浏览器打开更新包下载地址 */
+  /**
+   * 用系统浏览器打开更新包下载地址。
+   *
+   * 只留给官网 / 兜底用；软件里的「立即更新」走下面的 updateDownload，
+   * 在应用内下载（走系统代理，带进度，下来直接装）。
+   */
   openDownload: (url: string) => Promise<boolean>
+  /** 应用内下载安装包，带进度回调（走 IPC 推送，不走这里的返回值） */
+  updateDownload: (
+    url: string,
+    sha256: string,
+    size: number
+  ) => Promise<UpdateDownloadResult>
+  /** 取消正在进行的下载；没有下载时也是成功 */
+  updateCancel: () => Promise<{ ok: boolean }>
+  /** 运行已下载的安装包并退出软件 */
+  updateInstall: (path: string) => Promise<UpdateDownloadResult>
+  /** 在文件管理器里定位安装包 */
+  updateReveal: (path: string) => Promise<{ ok: boolean; message?: string }>
+  onUpdateProgress: (cb: (p: UpdateProgress) => void) => () => void
   backupList: () => Promise<BackupFile[]>
   backupCreate: () => Promise<BackupFile[]>
   backupRestore: (name: string) => Promise<void>

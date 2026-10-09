@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import PageHeader from '../components/PageHeader.vue'
+import { useUpdateDownloadStore } from '../stores/update-download'
 import { APP_VERSION } from '../../shared/version'
-import { AUTHOR_NAME, CONTACT_LINKS, type ContactLink, QQ_NUMBER } from '../../shared/links'
+import { AUTHOR_NAME, CONTACT_LINKS, OFFICIAL_SITE_URL, type ContactLink, QQ_NUMBER } from '../../shared/links'
 import { formatBytes, type UpdateCheckResult } from '../../shared/update'
 import type { LibView } from '../../shared/terms'
 import type { BackupFile } from '../../shared/api-contract'
@@ -11,7 +12,6 @@ const dataDir = ref('')
 const libs = ref<LibView[]>([])
 const checking = ref(false)
 const updateResult = ref<UpdateCheckResult | null>(null)
-const downloadMsg = ref('')
 const backups = ref<BackupFile[]>([])
 const restoreTarget = ref('')
 const resetConfirm = ref(false)
@@ -92,7 +92,6 @@ async function checkAppUpdate(): Promise<void> {
   if (checking.value) return
   checking.value = true
   updateResult.value = null
-  downloadMsg.value = ''
   try {
     updateResult.value = await window.api.checkUpdate()
   } catch (e) {
@@ -111,13 +110,23 @@ async function checkAppUpdate(): Promise<void> {
 const updateInfo = computed(() => updateResult.value?.info)
 const updateSizeText = computed(() => formatBytes(updateInfo.value?.size ?? 0))
 
-async function openDownload(): Promise<void> {
-  const url = updateInfo.value?.downloadUrl
-  if (!url) return
-  const opened = await window.api.openDownload(url)
-  downloadMsg.value = opened
-    ? '已在浏览器中打开下载页，安装包较大请耐心等待'
-    : '下载链接无效，已阻止打开；可前往官网手动下载'
+// 应用内下载的状态机：与启动弹窗共用同一份（同一个 Pinia store 实例），
+// 所以在弹窗里开始下载后，切到「关于软件」页看到的还是同一个进度。
+const dl = useUpdateDownloadStore()
+
+function startDownload(): void {
+  const info = updateInfo.value
+  if (!info) return
+  void dl.start(info.downloadUrl, info.sha256, info.size)
+}
+
+/** 下载失败时的重试：直接重跑一次，已有的半成品文件会覆盖重写 */
+function retryDownload(): void {
+  startDownload()
+}
+
+async function openOfficialSite(): Promise<void> {
+  await window.api.openExternal(OFFICIAL_SITE_URL)
 }
 
 onMounted(async () => {
@@ -182,8 +191,38 @@ onMounted(async () => {
         </ul>
         <p v-if="updateSizeText" class="update-sub">安装包大小 {{ updateSizeText }}</p>
         <p v-if="updateInfo.sha256" class="update-sha">SHA256：{{ updateInfo.sha256 }}</p>
-        <button class="m-btn accent" @click="openDownload">前往下载</button>
-        <p v-if="downloadMsg" class="update-sub">{{ downloadMsg }}</p>
+
+        <!-- idle / 取消后：主按钮下载，旁边留一条去官网的退路 -->
+        <template v-if="dl.phase === 'idle'">
+          <button class="m-btn accent update-primary" @click="startDownload">立即更新</button>
+          <p class="update-fallback">
+            下载遇到问题？
+            <a class="link-like" href="#" @click.prevent="openOfficialSite">前往官网</a>
+          </p>
+        </template>
+
+        <!-- 下载中：同一个按钮变成「取消下载 42%」，下面跟进度条 -->
+        <template v-else-if="dl.phase === 'downloading'">
+          <button class="m-btn update-primary" @click="dl.cancel()">
+            取消下载 {{ dl.percent }}%
+          </button>
+          <div class="progress">
+            <i :style="{ width: dl.percent + '%' }"></i>
+          </div>
+        </template>
+
+        <!-- 下载完成：点一下就把软件交出去，由安装包安装新版本 -->
+        <template v-else-if="dl.phase === 'done'">
+          <button class="m-btn accent update-primary" @click="dl.install()">安装并重启</button>
+          <button class="m-btn update-primary" @click="dl.reveal()">打开所在文件夹</button>
+          <p class="update-sub">已下载到 {{ dl.path }}，点击下方按钮后软件会退出并启动安装程序</p>
+        </template>
+
+        <!-- 下载失败：给原因 + 重试 -->
+        <template v-else>
+          <p class="update-err">{{ dl.message }}</p>
+          <button class="m-btn update-primary" @click="retryDownload">重试下载</button>
+        </template>
       </div>
 
       <div v-else-if="updateResult?.status === 'error'" class="update-box failed">
@@ -336,9 +375,40 @@ onMounted(async () => {
 .update-box .m-btn {
   margin-top: 10px;
 }
-.update-box .m-btn.accent {
+/* ⚠️ 这里以前有一条 `.update-box .m-btn.accent { color: var(--accent) }`，
+   把 base.css 里 accent 按钮的深墨字色覆盖成了金色 —— 金底配金字，等于把按钮上的字
+   抹掉，用户看到的就是一个空药丸。accent 的配色由 base.css 统一负责，这里不要再覆盖。 */
+.update-fallback {
+  margin-top: 7px;
+  font-size: 11.5px;
+  color: var(--txt3);
+}
+.update-fallback .link-like {
   color: var(--accent);
-  border-color: var(--accent-line);
+  cursor: pointer;
+}
+.progress {
+  margin-top: 9px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--card2);
+  overflow: hidden;
+}
+.progress i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.2s linear;
+}
+.update-err {
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--danger);
+  line-height: 1.6;
+}
+.update-primary {
+  margin-right: 6px;
 }
 .logo {
   width: 64px;
