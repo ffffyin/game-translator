@@ -24,6 +24,9 @@ tests/
 # TypeScript 增量构建信息
 *.tsbuildinfo
 
+# 本机 OCR 引擎运行时下载的语言包副本（正式语言包在 resources/tessdata/）
+/eng.traineddata
+
 # 系统文件
 Thumbs.db
 .DS_Store
