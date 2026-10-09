@@ -56,7 +56,8 @@ const CLOUD_OAUTH_RELAY = 'https://www.workbuddy.cn/v2/as/genie-baas/oauth'
 //  2. updateUser 内部会在重置成功后立刻自动登录，并把「自动登录失败」当作整体失败
 //     返回 —— 于是「其实已经重置成功」被包装成一次失败，用户会以为没改成功。
 // 所以这里照 SDK 自己用的同一组路径与请求头直连，自己串起
-// 「验码 → 重置 → 用新密码登录」三步。主进程发起请求不带 Origin，与 SDK 一致。
+// 「验码 → 重置 → 用新密码登录」三步。请求头一律走 authHeaders() 补上应用来源，
+// 否则服务端会以 401 invalid_grant 拒签令牌（详见下方 AUTH_ORIGIN 处的实测记录）。
 //
 // 基址与请求头直接复用 SDK 导出的常量，避免我们写死一份、SDK 升级后悄悄错位；
 // 只有三个 /v1/** 子路径没被导出，照 SDK 内部 AUTH_PATHS 原样抄下来。
@@ -66,6 +67,48 @@ const AUTH_KEY_HEADER = PUBLISHABLE_KEY_HEADER
 const AUTH_PATH_VERIFICATION = '/v1/verification'
 const AUTH_PATH_VERIFICATION_VERIFY = '/v1/verification/verify'
 const AUTH_PATH_RESET = '/v1/reset'
+
+// 所有发往本应用云端 endpoint 的请求都必须带「应用来源」，否则服务端一律拒签/拒认。
+// auth 与 database 两条路径都实测过，缺 Origin 的表现同为
+// `invalid_grant: the session is invalid, expired or issued for another client`。
+// 实测对照：
+//
+//   POST /v1/signin 不带 Origin
+//     -> 401 invalid_grant "the session is invalid, expired or issued for another client"
+//   POST /v1/signin 带 Origin: https://game-translator.app.workbuddy.host
+//     -> 200 + access_token
+//
+// 这个 401 极具误导性：用户名其实存在、密码也是对的，被拒的是「签发令牌」这一步。
+// 早先拿不存在的邮箱去试探会拿到 400 "Username or password incorrect."（在校验凭据时
+// 就返回了，根本走不到签发令牌），所以看不出 Origin 才是变量 —— 这个坑记在这里，别再踩。
+// 签出的 JWT 里 `azp` 字段正是这个 endpoint，说明服务端把会话绑定到了应用来源。
+//
+// Electron 主进程的 fetch 不是浏览器，天然不带 Origin，必须手动补；
+// 渲染进程反过来做不到：浏览器强制带的 Origin 是 file:// 或 localhost，不是我们的域名，
+// 同样会被拒。这也是云调用必须留在主进程、且还需要这层包装的原因。
+const AUTH_ORIGIN = CLOUD_ENDPOINT
+
+/** 在原有请求头之上补 origin / referer，不覆盖调用方已经设置的值。 */
+function authHeaders(extra?: HeadersInit): Headers {
+  const h = new Headers(extra)
+  if (!h.has('origin')) h.set('origin', AUTH_ORIGIN)
+  if (!h.has('referer')) h.set('referer', AUTH_ORIGIN + '/')
+  return h
+}
+
+/**
+ * 注入 SDK 的 fetch：给发往本应用云端的请求补来源头，其余请求原样透传。
+ * 只认 CLOUD_ENDPOINT 前缀，不会顺手给别的请求（比如模型厂商接口）加料。
+ */
+export function fetchWithAuthOrigin(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
+  const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+  const url = String(raw ?? '')
+  if (!url.startsWith(CLOUD_ENDPOINT)) return fetch(input as RequestInfo, init)
+  return fetch(input as RequestInfo, { ...init, headers: authHeaders(init?.headers) })
+}
 
 const CREDENTIAL_FILE = 'cloud-session.enc'
 
@@ -244,7 +287,9 @@ export class CloudService {
         endpoint: CLOUD_ENDPOINT,
         publishableKey: CLOUD_PUBLISHABLE_KEY,
         oauthRelayBaseUrl: CLOUD_OAUTH_RELAY,
-        storage
+        storage,
+        // 没有这一层，主进程发出的 signin / verifyOtp 会被服务端拒签令牌（401 invalid_grant）
+        fetch: fetchWithAuthOrigin
       })
       this.storage = storage
       // 会话一变就落盘：刷新 token 是 SDK 内部发起的，不挂这个钩子的话
@@ -493,10 +538,11 @@ export class CloudService {
     try {
       res = await fetch(AUTH_HTTP_BASE + path, {
         method: 'POST',
-        headers: {
+        // 走 authHeaders 而不是裸对象：直连同样会被服务端拒签令牌（缺 Origin）
+        headers: authHeaders({
           'Content-Type': 'application/json',
           [AUTH_KEY_HEADER]: CLOUD_PUBLISHABLE_KEY
-        },
+        }),
         body: JSON.stringify(body)
       })
     } catch (e) {
