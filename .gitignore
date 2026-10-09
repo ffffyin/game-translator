@@ -18,6 +18,9 @@ coverage/
 # 内部文档（PRD / 设计方案 / QA 报告 / 交付说明），不随源码公开
 deliverables/
 
+# 测试代码与调试截图，不随源码公开（保留在本机，不上传仓库）
+tests/
+
 # TypeScript 增量构建信息
 *.tsbuildinfo
 

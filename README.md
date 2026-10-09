@@ -159,7 +159,6 @@ npm run dev            # 开发模式
 
 ```bash
 npm run build:win      # 打包 Windows 安装包
-npm test               # 全量测试
 npm run typecheck:node # 主进程类型检查
 npm run typecheck:web  # 渲染层类型检查
 ```
@@ -168,7 +167,7 @@ npm run typecheck:web  # 渲染层类型检查
 
 ## 🤝 贡献指南
 
-欢迎通过 [Issues](https://github.com/ffffyin/game-translator/issues) 反馈使用问题与功能建议；提交 PR 前请先跑通 `npm test` 与两份类型检查。
+欢迎通过 [Issues](https://github.com/ffffyin/game-translator/issues) 反馈使用问题与功能建议；提交代码前请先跑通 `npm run typecheck:node` 与 `npm run typecheck:web` 两份类型检查。
 
 ---
 
