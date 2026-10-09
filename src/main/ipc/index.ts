@@ -3,7 +3,8 @@ import { shell, dialog, app } from 'electron'
 import { join } from 'path'
 import { writeFileSync, readFileSync } from 'fs'
 import type { Db } from '../services/db'
-import { closeDb } from '../services/db'
+import { closeDb, getDb } from '../services/db'
+import { CloudService } from '../services/cloud'
 import { SettingsService } from '../services/settings'
 import { ModelConfigService } from '../services/model-config'
 import { UsageService } from '../services/usage'
@@ -34,6 +35,9 @@ export function registerIpc(
   const hotkeys = new HotkeyManager(db)
   const termLibs = new TermLibraryService(db)
   const phrases = new PhraseService(db)
+  // 云服务初始化不阻塞界面：失败也不影响任何本地功能，登录是加成不是门槛
+  const cloud = new CloudService(root, getDb)
+  void cloud.init()
 
   const handle = win.webContents.ipc
 
@@ -301,6 +305,30 @@ export function registerIpc(
     phrases.move(id, direction)
     onPhrasesChanged()
   })
+
+  // 云端账号与配置同步（全部走异步，失败一律返回 ok:false + 中文原因，不抛给界面）
+  handle.handle('cloud:status', () => cloud.status())
+  handle.handle('cloud:localSummary', () => cloud.localSummary())
+  handle.handle('cloud:sendOtp', (_e, email: string) => cloud.sendOtp(email))
+  handle.handle(
+    'cloud:verifyOtp',
+    (
+      _e,
+      input: { email: string; verificationId: string; token: string; isExistingUser: boolean }
+    ) => cloud.verifyOtp(input)
+  )
+  handle.handle('cloud:signOut', () => cloud.signOut())
+  handle.handle('cloud:push', async () => {
+    const r = await cloud.push()
+    if (r.ok) onPhrasesChanged()
+    return r
+  })
+  handle.handle('cloud:pull', async () => {
+    const r = await cloud.pull()
+    if (r.ok) onPhrasesChanged()
+    return r
+  })
+  handle.handle('cloud:removeRemote', () => cloud.removeRemote())
 }
 
 export function notify(win: BrowserWindow, payload: NotifyPayload): void {

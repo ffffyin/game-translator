@@ -5,6 +5,14 @@ import type { RegionRect } from './region'
 import type { ResultData, RetranslateRequest } from './result'
 import type { LibView, TermView, TermInput } from './terms'
 import type { PhraseView, PhrasePageView, PhrasePageInput } from './phrases'
+import type {
+  CloudStatus,
+  CloudOtpResult,
+  CloudVerifyResult,
+  CloudSyncResult,
+  CloudSimpleResult,
+  CloudSummary
+} from './cloud'
 
 export interface NotifyPayload {
   type: 'ok' | 'error' | 'loading' | 'info'
@@ -152,4 +160,19 @@ export interface ApiContract {  ping: () => Promise<string>
   phrasesSetEnabled: (id: number, enabled: boolean) => Promise<void>
   phrasesRemove: (id: number) => Promise<void>
   phrasesMove: (id: number, direction: 'up' | 'down') => Promise<void>
+
+  // 云端账号与配置同步（可选功能：未登录/断网不影响任何本地能力）
+  cloudStatus: () => Promise<CloudStatus>
+  cloudLocalSummary: () => Promise<CloudSummary>
+  cloudSendOtp: (email: string) => Promise<CloudOtpResult>
+  cloudVerifyOtp: (input: {
+    email: string
+    verificationId: string
+    token: string
+    isExistingUser: boolean
+  }) => Promise<CloudVerifyResult>
+  cloudSignOut: () => Promise<CloudSimpleResult>
+  cloudPush: () => Promise<CloudSyncResult>
+  cloudPull: () => Promise<CloudSyncResult>
+  cloudRemoveRemote: () => Promise<CloudSimpleResult>
 }

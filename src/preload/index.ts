@@ -108,7 +108,16 @@ const api: ApiContract = {
   phrasesUpdate: (id, content) => ipcRenderer.invoke('phrases:update', id, content),
   phrasesSetEnabled: (id, enabled) => ipcRenderer.invoke('phrases:setEnabled', id, enabled),
   phrasesRemove: (id) => ipcRenderer.invoke('phrases:remove', id),
-  phrasesMove: (id, direction) => ipcRenderer.invoke('phrases:move', id, direction)
+  phrasesMove: (id, direction) => ipcRenderer.invoke('phrases:move', id, direction),
+
+  cloudStatus: () => ipcRenderer.invoke('cloud:status'),
+  cloudLocalSummary: () => ipcRenderer.invoke('cloud:localSummary'),
+  cloudSendOtp: (email) => ipcRenderer.invoke('cloud:sendOtp', email),
+  cloudVerifyOtp: (input) => ipcRenderer.invoke('cloud:verifyOtp', input),
+  cloudSignOut: () => ipcRenderer.invoke('cloud:signOut'),
+  cloudPush: () => ipcRenderer.invoke('cloud:push'),
+  cloudPull: () => ipcRenderer.invoke('cloud:pull'),
+  cloudRemoveRemote: () => ipcRenderer.invoke('cloud:removeRemote')
 }
 
 if (process.contextIsolated) {

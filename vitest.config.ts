@@ -27,6 +27,8 @@ export default defineConfig({
       include: [
         'src/main/services/actions.ts',
         'src/main/services/backup.ts',
+        'src/main/services/cloud-snapshot.ts',
+        'src/main/services/cloud-storage.ts',
         'src/main/services/crypto.ts',
         'src/main/services/db-wrapper.ts',
         'src/main/services/hotkey-manager.ts',
@@ -44,6 +46,7 @@ export default defineConfig({
         'src/main/services/translate.ts',
         'src/main/services/usage.ts',
         'src/shared/accelerator.ts',
+        'src/shared/cloud.ts',
         'src/shared/colors.ts',
         'src/shared/defaults.ts',
         'src/shared/hotkeys.ts',
