@@ -12,6 +12,12 @@ coverage/
 *.log
 *.tmp
 
+# git filter-branch 重写历史时的中间目录
+.git-rewrite/
+
+# 内部文档（PRD / 设计方案 / QA 报告 / 交付说明），不随源码公开
+deliverables/
+
 # TypeScript 增量构建信息
 *.tsbuildinfo
 
