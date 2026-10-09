@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
+    "dashboard": "node scripts/dashboard.mjs",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json"
   },
