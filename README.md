@@ -5,7 +5,7 @@
 <div align="center">
   <img src="docs/logo.png" alt="游戏翻译助手 Logo" width="200"/>
   <br><br>
-  <a href="#"><img src="https://img.shields.io/badge/version-v1.0.0-E8A23B?style=flat-square" alt="version"/></a>
+  <a href="#"><img src="https://img.shields.io/badge/version-v1.0.1-E8A23B?style=flat-square" alt="version"/></a>
   <a href="#"><img src="https://img.shields.io/badge/platform-Windows%2010%20%2F%2011%20x64-474E5C?style=flat-square" alt="platform"/></a>
   <a href="#"><img src="https://img.shields.io/badge/Electron-44-47848F?style=flat-square" alt="Electron"/></a>
   <a href="#"><img src="https://img.shields.io/badge/Vue-3-42B883?style=flat-square" alt="Vue"/></a>
@@ -34,7 +34,7 @@
 
 游戏翻译助手是一款 Windows 桌面端的游戏实时翻译工具，解决外服开黑时「看不懂、说不出」的问题：截取游戏画面 → OCR / 视觉识别外文 → 调用你自己配置的大模型翻译成母语 → 以悬浮窗叠加回画面；在聊天框里按下快捷键，译文还能直接替换原文，全程不用切出游戏。
 
-当前版本 **v1.0.0**（游戏翻译助手首个正式版本），安装包 `game-translator-1.0.0-setup.exe`（NSIS，Windows x64，131.9 MB）。
+当前版本 **v1.0.1**（游戏翻译助手首个正式版本），安装包 `game-translator-1.0.1-setup.exe`（NSIS，Windows x64，131.9 MB）。
 
 ### ✨ 主要特性
 
@@ -46,7 +46,7 @@
 - 📊 **AI 额度**：统计各模型的调用量与配额消耗
 - 🧩 **模型配置**：自定义模型厂商、接口地址与密钥（密钥用 Windows DPAPI 加密存本机）
 - ☁️ **账号同步**：术语库、常用语等配置可保存到云端，在多台机器间同步
-- 🔄 **检查更新**：软件内读取官网版本清单，发现新版本时给出更新说明并引导下载
+- 🔄 **检查更新**：启动时后台读取官网版本清单，发现新版本弹出「立即更新 / 跳过此版本 / 下次再说」三选一提示；也可在「关于软件」里手动检查
 
 > **API 配置上云是默认关闭的。** 打开后密钥会以明文离开本机，界面上有明确的免责声明与二次确认。
 
@@ -64,14 +64,14 @@
 ## 🚀 快速开始
 
 1. **下载**：从[官网首页](https://game-translator.app.workbuddy.host/)的下载按钮获取安装包，或前往 [GitHub Releases](https://github.com/ffffyin/game-translator/releases) 下载
-2. **安装**：双击 `game-translator-1.0.0-setup.exe`，按向导完成安装，可自定义安装目录并创建桌面与开始菜单快捷方式
+2. **安装**：双击 `game-translator-1.0.1-setup.exe`，按向导完成安装，可自定义安装目录并创建桌面与开始菜单快捷方式
 3. **注册 / 登录**：没有账号就点「注册新账号」（昵称 + 邮箱 + 验证码 + 密码，6~60 位）；已有账号用邮箱和密码登录
 4. **配置模型**：到「AI 模型配置」选厂商模板（OpenAI 兼容 / DeepSeek / 通义 / 智谱 / Kimi / OpenRouter），填 API Key、接口地址与模型名，点「测试连接」验证并设为默认
 5. **开始使用**：回主页选择语言方向、游戏术语库、翻译风格与截图识别通道，进游戏按快捷键即可
 
 > 安装包未做代码签名，首次运行时 Windows SmartScreen 可能提示「Windows 已保护你的电脑」：点击「更多信息 → 仍要运行」即可正常安装，同一台机器再次安装不会再出现该提示。
 
-> 软件内「关于软件 → 检查软件更新」会读取官网的版本清单，发现新版本时会给出更新说明并引导前往下载。
+> 软件内「关于软件 → 检查软件更新」会读取官网的版本清单，发现新版本时会给出更新说明并引导前往下载；启动时也会在后台静默检查一次，有新版本才提示（可选「跳过此版本」，将来更新的版本仍会重新提醒）。
 
 ---
 

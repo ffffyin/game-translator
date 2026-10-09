@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import TitleBar from './components/TitleBar.vue'
 import SideNav from './components/SideNav.vue'
 import ToastHost from './components/ToastHost.vue'
+import UpdatePromptDialog from './components/UpdatePromptDialog.vue'
+import { shouldPromptBootUpdate, type UpdateInfo } from '../shared/update'
 import { useSettingsStore } from './stores/settings'
 import { useModelsStore } from './stores/models'
 import { useAuthStore } from './stores/auth'
@@ -14,8 +16,53 @@ const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
-/** 启动加载中：此时登录态未知，监听器不应该抢在初始化完成前改路由 */
+/** 启动期 login 态未知，监听器不应该抢在初始化完成前改路由 */
 const booting = ref(true)
+
+/** 启动自动检查到新版本时要弹的版本信息；null 表示不弹 */
+const updatePrompt = ref<UpdateInfo | null>(null)
+
+/**
+ * 启动时的自动更新检查（fire-and-forget）。
+ *
+ * 两个刻意的选择：
+ * 1. **排在登录之后**：每次启动都要重新登录，更新检查绝不能抢在它前面拖慢进界面；
+ * 2. **失败完全静默**：用户这会儿什么都没点，网络断了/清单坏了就当没发生过，
+ *    只写日志。想看结果的人会自己去「关于软件」页点「检查软件更新」。
+ */
+async function checkUpdateOnBoot(): Promise<void> {
+  try {
+    const r = await window.api.checkUpdate()
+    if (!shouldPromptBootUpdate(r, settings.settings.updateSkipVersion)) return
+    updatePrompt.value = r.info ?? null
+  } catch (e) {
+    console.warn('[update] 启动自动检查失败：', e)
+  }
+}
+
+async function goUpdate(url: string): Promise<void> {
+  updatePrompt.value = null
+  try {
+    await window.api.openDownload(url)
+  } catch (e) {
+    console.warn('[update] 打开下载地址失败：', e)
+  }
+}
+
+async function skipUpdate(version: string): Promise<void> {
+  updatePrompt.value = null
+  try {
+    await settings.update('updateSkipVersion', version)
+  } catch (e) {
+    // 写不进去也不该把用户卡在弹窗里：最坏结果是下次照常提醒一次
+    console.warn('[update] 记录跳过版本失败：', e)
+  }
+}
+
+function laterUpdate(): void {
+  // 「下次再说」刻意不落任何数据：下次启动必须照常提醒
+  updatePrompt.value = null
+}
 
 /**
  * 登录态与路由的唯一同步点。
@@ -63,6 +110,9 @@ onMounted(async () => {
   } catch {
     // 模型列表失败不阻塞界面
   }
+  // 登录进主界面之后才检查更新，且不等它返回。
+  // 未登录时停在登录页，那个界面已经够挤了，不该再叠一层弹窗。
+  if (auth.signedIn) void checkUpdateOnBoot()
 })
 </script>
 
@@ -87,6 +137,13 @@ onMounted(async () => {
       </main>
     </div>
     <ToastHost />
+    <UpdatePromptDialog
+      v-if="updatePrompt"
+      :info="updatePrompt"
+      @update="goUpdate"
+      @skip="skipUpdate"
+      @later="laterUpdate"
+    />
   </div>
 </template>
 

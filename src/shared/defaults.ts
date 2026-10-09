@@ -23,6 +23,16 @@ export interface AppSettings {
   autoStart: number // 0 | 1
   minimizeToTray: number // 0 | 1
   termUpdateUrl: string // 术语库更新清单 URL
+  /**
+   * 用户在更新弹窗里选择「跳过此新版本并不再提醒」的那个版本号，空串表示没跳过任何版本。
+   *
+   * 只比较**完全相等**的版本号：将来发布更新的版本（比如跳过 1.0.1 后出了 1.0.2）
+   * 必须重新弹出提示，否则用户会被永久锁死在旧版本上收不到更新。
+   *
+   * 本机键：换台机器换套偏好，不该跟着云快照漂过去，因此不入 CLOUD_SETTING_KEYS。
+   * 必须是 string —— settings.ts 只对 DEFAULT_SETTINGS 里本来就是 number 的键做数值还原。
+   */
+  updateSkipVersion: string
   // 以下三个是**本机键**：既不进云快照白名单（见 CLOUD_SETTING_KEYS），也不参与鉴权。
   // 云端没有可写的账号名字段，昵称只在界面上展示；记住的邮箱只用于预填登录框。
   cloudNickname: string // 展示用昵称
@@ -84,6 +94,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoStart: 0,
   minimizeToTray: 1,
   termUpdateUrl: '',
+  updateSkipVersion: '',
   cloudNickname: '',
   cloudAccountEmail: '',
   cloudRememberAccount: 1,

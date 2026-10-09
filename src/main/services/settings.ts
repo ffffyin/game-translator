@@ -46,7 +46,10 @@ const ACCOUNT_SETTING_KEYS: Array<keyof AppSettings> = [
   // 画面（截图）翻译方向。老用户升级后不覆盖已有值，但必须立刻落库，
   // 否则该键在 DB 里「可能存在也可能不存在」，云同步快照会漂移。
   'screenSource',
-  'screenTarget'
+  'screenTarget',
+  // 默认空串：没跳过任何版本。本机键——这台机器跳过不代表别的机器也跳过，
+  // 所以它不在 CLOUD_SETTING_KEYS 里。
+  'updateSkipVersion'
 ]
 
 /** 把缺失的新设置键补进数据库。幂等，可重复调用。 */

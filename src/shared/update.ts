@@ -97,6 +97,29 @@ export function isNewerVersion(candidate: string, current: string): boolean {
   return cmp !== null && cmp > 0
 }
 
+/**
+ * 启动时的自动检查是否该弹「发现新版本」弹窗。
+ *
+ * 三条必须挡住的情况：
+ * 1. 检查失败（网络断、清单坏、HTTP 500）—— 用户什么都没点，不该被打扰；
+ * 2. 已是最新 —— 没有新内容可说；
+ * 3. 这个版本用户上次选了「跳过此新版本并不再提醒」。
+ *
+ * ⚠️ 第 3 条**只能用在启动自动检查这条路径上**。用户在「关于软件」页主动点
+ * 「检查软件更新」时是带着明确意图来的，那时必须原样显示结果——哪怕他之前
+ * 跳过过这个版本，否则「手动检查」会变成一个永远查不到东西的死按钮。
+ *
+ * ⚠️ 跳过标记按**字符串全等**匹配：跳过的是 1.0.1 时将来发布 1.0.2 仍要弹。
+ * 千万别写成「跳过 ≥ 某版本」这种语义，那等于替用户永久关掉更新提示。
+ */
+export function shouldPromptBootUpdate(result: UpdateCheckResult, skipVersion: string): boolean {
+  if (!result.ok || result.status !== 'available') return false
+  const info = result.info
+  if (!info || !info.downloadUrl) return false
+  const skipped = typeof skipVersion === 'string' ? skipVersion.trim() : ''
+  return skipped !== info.version.trim()
+}
+
 /** 字节数转人类可读文案；非正数或非法数字返回空串（UI 据此不展示体积） */
 export function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return ''
