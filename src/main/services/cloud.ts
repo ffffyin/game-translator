@@ -118,6 +118,7 @@ type CloudResultLike = { data: unknown; error: unknown }
 interface CloudQuery extends PromiseLike<CloudResultLike> {
   select(columns: string): CloudQuery
   eq(column: string, value: unknown): CloudQuery
+  insert(rows: Record<string, unknown>): CloudQuery
   upsert(rows: Record<string, unknown>, options?: { onConflict?: string }): CloudQuery
   delete(): CloudQuery
   maybeSingle(): CloudQuery
@@ -273,6 +274,9 @@ export class CloudService {
   private initPromise: Promise<void> | null = null
   // 断网时仍要能显示「上次是谁登录的」：状态在内存里留一份快照
   private cached: CloudStatus | null = null
+  // 一个进程只发一次 boot 流水：status() 会被界面反复轮询，每刷一次插一行
+  // 会把「今日登录用户数」冲成虚高（同一人反复开机 = 多条）。
+  private bootEventSent = false
 
   constructor(
     private readonly root: string,
@@ -459,8 +463,21 @@ export class CloudService {
     }
   }
 
-  /** 读登录态 + 云端概况。断网时回退到内存快照，界面不会退化成「未登录」。 */
+  /**
+   * 读登录态 + 云端概况。断网时回退到内存快照，界面不会退化成「未登录」。
+   *
+   * 这里刻意只做一件事：它是「已登录」结论的唯一公共出口，boot 流水就挂在这里。
+   * status() 有多条分支会走到 signedIn=true（会话分支 / 缓存分支 / 本机凭据兜底），
+   * 在每条分支里各插一次既容易漏也容易重复，挂在出口上一处覆盖全部。
+   */
   async status(): Promise<CloudStatus> {
+    const s = await this.readStatus()
+    if (s.signedIn) void this.recordEvent('boot')
+    return s
+  }
+
+  /** status() 的实现本体：只判定登录态，不碰埋点。 */
+  private async readStatus(): Promise<CloudStatus> {
     // 初始化失败时再给一次机会：DPAPI 解密要走一次 PowerShell，冷启动偶发超时/被杀，
     // 若就这么把"云端不可用"钉死，用户会一直登不进去。重试仍有节流（见 retryInit）。
     if (!this.client) await this.retryInit()
@@ -544,6 +561,38 @@ export class CloudService {
 
   private table(): CloudDatabase {
     return this.client!.database as unknown as CloudDatabase
+  }
+
+  /**
+   * 登录/启动流水。纯统计用，成败都不许影响登录 —— 所以这里自己吞掉所有异常。
+   *
+   * 云端目前只有 user_settings（RLS 行级权限，用户只能读写自己那行），
+   * 「多少注册用户、今日多少用户登录」没有任何服务端数据源，只能靠客户端埋点。
+   *
+   * ⚠️ owner_id 由服务端 DEFAULT auth.uid() 填，客户端不许传：
+   * login_events 的 INSERT 策略是 WITH CHECK (owner_id = auth.uid())，
+   * 客户端自己带一个（哪怕是正确的值）也照样被 RLS 拒。
+   *
+   * @param kind login=登录成功 / register=注册成功 / boot=确认已登录（进程内一次）
+   */
+  private async recordEvent(kind: 'login' | 'register' | 'boot'): Promise<void> {
+    // boot 只在进程内发一次：见字段 bootEventSent 的注释
+    if (kind === 'boot') {
+      if (this.bootEventSent) return
+    }
+    if (!this.client) return
+    if (kind === 'boot') this.bootEventSent = true
+    try {
+      const r = await this.table()
+        .from('login_events')
+        .insert({ kind, app_version: APP_VERSION })
+      // 成功不落 INFO：每次登录都写一行日志没有信息量，只会把 main.log 冲淡
+      if (r?.error) {
+        log('WARN', `登录流水写入失败（${kind}）：` + errorText(r.error, '未知错误'))
+      }
+    } catch (e) {
+      log('WARN', `登录流水写入失败（${kind}）：` + errorText(e, '未知错误'))
+    }
   }
 
   private async fetchRow(): Promise<{ payload: unknown; updated_at?: string } | null> {
@@ -713,6 +762,8 @@ export class CloudService {
       this.writeLocal('cloudRememberAccount', remember ? '1' : '0')
       // 不记住就立刻清掉邮箱：勾选项取消后本机不该继续留着账号标识
       if (!remember) this.writeLocal('cloudAccountEmail', '')
+      // 纯统计，失败也不许拖累这次登录
+      void this.recordEvent('login')
       log('INFO', '云端登录成功：' + this.redactEmail(email))
       return { ok: true, message: '登录成功', status: await this.status() }
     } catch (e) {
@@ -767,6 +818,8 @@ export class CloudService {
       }
       this.writeLocal('cloudNickname', nickname)
       this.writeLocal('cloudRememberAccount', '1')
+      // 纯统计，失败也不许拖累这次注册（账号已经建好了）
+      void this.recordEvent('register')
       log('INFO', '云端注册成功：' + this.redactEmail(email))
       // 刻意不自动 push：注册完就上传一份快照不是用户此刻的意思表示
       return { ok: true, message: '注册成功，已自动登录', status: await this.status() }
