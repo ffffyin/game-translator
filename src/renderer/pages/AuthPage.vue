@@ -45,6 +45,18 @@ function backToLogin(message?: string): void {
 async function enterApp(): Promise<void> {
   await router.replace('/home')
 }
+
+/** 账号服务没起来时给一条自救路径，别只丢一个红字让用户干瞪眼 */
+const retrying = ref(false)
+async function retryStatus(): Promise<void> {
+  if (retrying.value) return
+  retrying.value = true
+  try {
+    await auth.refresh()
+  } finally {
+    retrying.value = false
+  }
+}
 </script>
 
 <template>
@@ -58,9 +70,12 @@ async function enterApp(): Promise<void> {
         </div>
       </div>
 
-      <p v-if="!auth.available" class="banner">
-        云端账号服务当前不可用，请检查网络或稍后重启软件再试。
-      </p>
+      <div v-if="!auth.available" class="banner banner-action">
+        <span>账号服务没能启动，通常是网络不通或安全组件被拦。</span>
+        <button type="button" class="retry" :disabled="retrying" @click="retryStatus">
+          {{ retrying ? '重试中…' : '重试' }}
+        </button>
+      </div>
       <p v-else-if="!auth.online" class="banner">
         网络暂时不可用。若本机已保存登录状态，仍可继续操作，只是云端同步会暂停。
       </p>
@@ -78,6 +93,9 @@ async function enterApp(): Promise<void> {
         </button>
       </div>
 
+      <!-- ⚠️ v-if / v-else-if / v-else 必须首尾相接，中间不许插任何元素。
+           之前 notice 那行夹在中间，把 v-if 链切断，导致 v-else 变成独立的
+           「其他情况」，注册表单和重置表单会同时渲染出来。 -->
       <AccountLoginForm
         v-if="mode === 'login'"
         :remembered-email="rememberedEmail"
@@ -90,18 +108,20 @@ async function enterApp(): Promise<void> {
       <AccountRegisterForm
         v-else-if="mode === 'register'"
         :initial-email="email"
+        :show-links="false"
         @success="enterApp"
         @go-login="toMode('login')"
       />
-      <p v-if="notice" class="banner ok">{{ notice.text }}</p>
-
       <AccountResetForm
         v-else
         :initial-email="email"
+        :show-links="false"
         @signed-in="enterApp"
         @done="backToLogin"
         @go-login="toMode('login')"
       />
+
+      <p v-if="notice" class="banner ok">{{ notice.text }}</p>
 
       <p class="foot">登录标识是邮箱，昵称仅用于展示，不参与登录。</p>
     </div>
@@ -164,6 +184,27 @@ async function enterApp(): Promise<void> {
   color: var(--teal);
   background: var(--teal-soft);
   border-color: var(--teal);
+}
+.banner-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.retry {
+  flex-shrink: 0;
+  border: 1px solid var(--danger);
+  background: transparent;
+  color: var(--danger);
+  font-size: 12px;
+  font-family: inherit;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.retry:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 .tabs {
   display: flex;

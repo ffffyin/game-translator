@@ -528,3 +528,104 @@ describe('AuthPage 找到密码后的衔接', () => {
     expect(w.find('form.reset').exists()).toBe(false)
   })
 })
+
+/**
+ * 三个分段页签「同一时刻只能有一个表单」。
+ *
+ * 这条测试是补一个只有真机才看得见的 bug：`notice` 那个 <p> 曾夹在
+ * v-if / v-else-if / v-else 链中间，把链切断，v-else 于是变成独立的「其他情况」，
+ * 结果「注册」页签下注册表单和重置表单会一起渲染出来。
+ * 单看任意一个表单的测试都是绿的，因为它们各测各的。
+ */
+describe('AuthPage 分段页签：同一时刻只有一个表单', () => {
+  // 注意：注册表单的根 class 是 .reg（不是 .register），写错选择器会让断言永远为假
+  const FORMS = ['form.login', 'form.reg', 'form.reset']
+
+  function visibleForms(w: VueWrapper): string[] {
+    return FORMS.filter((sel) => w.find(sel).exists())
+  }
+
+  it('默认只渲染登录表单', async () => {
+    installAccountApi(signedOut())
+    const w = mountVm(AuthPage)
+    await vi.waitFor(() => expect(w.find('form.login').exists()).toBe(true))
+    expect(visibleForms(w)).toEqual(['form.login'])
+  })
+
+  it('切到注册：只剩注册表单，重置表单必须消失', async () => {
+    installAccountApi(signedOut())
+    const w = mountVm(AuthPage)
+    await w.findAll('.tab').find((b) => b.text() === '注册')!.trigger('click')
+    await vi.waitFor(() => expect(w.find('form.reg').exists()).toBe(true))
+    expect(visibleForms(w)).toEqual(['form.reg'])
+  })
+
+  it('切到找回密码：只剩重置表单，注册表单必须消失', async () => {
+    installAccountApi(signedOut())
+    const w = mountVm(AuthPage)
+    await w.findAll('.tab').find((b) => b.text() === '找回密码')!.trigger('click')
+    await vi.waitFor(() => expect(w.find('form.reset').exists()).toBe(true))
+    expect(visibleForms(w)).toEqual(['form.reset'])
+  })
+
+  it('带 notice 回到登录页时，仍然只有登录表单', async () => {
+    installAccountApi(signedOut(), {
+      cloudResetPassword: vi.fn(async () => authOk('密码已重置，请用新密码登录', signedOut()))
+    })
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', redirect: '/auth' },
+        { path: '/auth', name: 'auth', component: { template: '<div/>' } },
+        { path: '/home', name: 'home', component: { template: '<div/>' } }
+      ]
+    })
+    const w = mountVm(AuthPage, router)
+    await router.isReady()
+    await w.findAll('.tab').find((b) => b.text() === '找回密码')!.trigger('click')
+    await vi.waitFor(() => expect(w.find('form.reset').exists()).toBe(true))
+
+    await w.find('input[placeholder="注册时使用的邮箱"]').setValue('me@example.com')
+    await w.find('.send-btn').trigger('click')
+    await vi.waitFor(() => expect(w.find('.send-btn').text()).toContain('秒后重发'))
+    await w.find('input.otp').setValue('123456')
+    await w.find('input#reset-password').setValue('new123456')
+    await w.find('input#reset-password-confirm').setValue('new123456')
+    await submit(w, 'form.reset')
+
+    await vi.waitFor(() => expect(w.text()).toContain('密码已重置，请用新密码登录'))
+    expect(visibleForms(w)).toEqual(['form.login'])
+  })
+
+  it('AuthPage 上不再重复出现「返回登录」（页签自己就是入口）', async () => {
+    installAccountApi(signedOut())
+    const w = mountVm(AuthPage)
+    await w.findAll('.tab').find((b) => b.text() === '注册')!.trigger('click')
+    await vi.waitFor(() => expect(w.find('form.reg').exists()).toBe(true))
+    expect(w.findAll('button').map((b) => b.text())).not.toContain('返回登录')
+
+    await w.findAll('.tab').find((b) => b.text() === '找回密码')!.trigger('click')
+    await vi.waitFor(() => expect(w.find('form.reset').exists()).toBe(true))
+    expect(w.findAll('button').map((b) => b.text())).not.toContain('返回登录')
+  })
+})
+
+describe('AuthPage 云端服务不可用时的自救', () => {
+  it('显示原因并提供「重试」，点击后重新拉一次状态', async () => {
+    const cloudStatus = vi.fn(async () => ({
+      ...signedOut(),
+      available: false,
+      online: false,
+      message: '云服务初始化失败'
+    }))
+    installAccountApi(signedOut(), { cloudStatus })
+    const w = mountVm(AuthPage)
+
+    // AuthPage 自己不拉状态（由 App 的启动流程统一拉），所以这里手动走一次真实路径
+    await useAuthStore().refresh()
+    await vi.waitFor(() => expect(w.text()).toContain('账号服务没能启动'))
+    const before = cloudStatus.mock.calls.length
+    await w.find('.retry').trigger('click')
+    await vi.waitFor(() => expect(cloudStatus.mock.calls.length).toBeGreaterThan(before))
+  })
+})

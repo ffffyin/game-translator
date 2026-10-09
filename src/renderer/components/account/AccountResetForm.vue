@@ -18,7 +18,14 @@ import { useAuthStore } from '../../stores/auth'
  * 判定条件是 `r.ok && r.status.signedIn` —— 只看 ok 会把「重置成功但没登进去」
  * 也当成成功，反过来只看 signedIn 又会在两种都失败时漏掉错误提示。
  */
-const props = withDefaults(defineProps<{ initialEmail?: string }>(), { initialEmail: '' })
+const props = withDefaults(
+  defineProps<{
+    initialEmail?: string
+    /** 是否显示「返回登录」入口（AuthPage 自带分段切换，不需要） */
+    showLinks?: boolean
+  }>(),
+  { initialEmail: '', showLinks: true }
+)
 
 const emit = defineEmits<{
   /** 重置成功且主进程已用新密码自动登录：直接进入软件 */
@@ -213,7 +220,8 @@ async function submit(): Promise<void> {
       {{ submitting ? '提交中…' : '重置密码' }}
     </button>
 
-    <div class="links">
+    <!-- AuthPage 自带分段切换，这里的返回入口就多余了；独立使用时才显示 -->
+    <div v-if="showLinks" class="links">
       <span class="dim">想起密码了？</span>
       <button type="button" class="link" @click="emit('go-login')">返回登录</button>
     </div>

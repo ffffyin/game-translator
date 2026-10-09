@@ -21,7 +21,14 @@ import { useAuthStore } from '../../stores/auth'
  * 昵称只在这里收集一次，写入快照仅作展示 —— 云端没有可写的账号名字段，
  * 它**不参与登录**，也不做查重。
  */
-const props = withDefaults(defineProps<{ initialEmail?: string }>(), { initialEmail: '' })
+const props = withDefaults(
+  defineProps<{
+    initialEmail?: string
+    /** 是否显示「返回登录」入口（AuthPage 自带分段切换，不需要） */
+    showLinks?: boolean
+  }>(),
+  { initialEmail: '', showLinks: true }
+)
 
 const emit = defineEmits<{
   success: []
@@ -223,11 +230,13 @@ async function submit(): Promise<void> {
       {{ submitting ? '注册中…' : '注册并登录' }}
     </button>
 
-    <div class="links">
+    <!-- AuthPage 自带分段切换，这里的返回入口就多余了；独立使用时才显示 -->
+    <div v-if="showLinks" class="links">
       <span class="dim">已有账号？</span>
       <button type="button" class="link" @click="emit('go-login')">返回登录</button>
       <span class="dim nick-tip">· 昵称 {{ NICKNAME_MIN }}-{{ NICKNAME_MAX }} 字符</span>
     </div>
+    <p v-else class="dim nick-tip solo-tip">昵称 {{ NICKNAME_MIN }}-{{ NICKNAME_MAX }} 字符</p>
   </form>
 </template>
 
@@ -300,6 +309,12 @@ async function submit(): Promise<void> {
 }
 .nick-tip {
   margin-left: 2px;
+}
+/* AuthPage 里不显示「返回登录」，这句提示单独占一行 */
+.solo-tip {
+  margin: 12px 0 0;
+  text-align: center;
+  font-size: 11.5px;
 }
 .link {
   border: none;

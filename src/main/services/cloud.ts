@@ -270,6 +270,7 @@ export class CloudService {
   private client: WorkBuddyCloudClient | null = null
   private storage: SecureAuthStorage | null = null
   private initError: string | null = null
+  private initPromise: Promise<void> | null = null
   // 断网时仍要能显示「上次是谁登录的」：状态在内存里留一份快照
   private cached: CloudStatus | null = null
 
@@ -280,6 +281,14 @@ export class CloudService {
 
   async init(): Promise<void> {
     if (this.client) return
+    // 同一时刻只跑一次初始化。init() 是异步的、失败还会清空 client，
+    // 两个并发调用会各自建一个 SDK 实例、互相覆盖会话（「为另一个客户端签发」多半就是这么来的）。
+    if (this.initPromise) return this.initPromise
+    this.initPromise = this.doInit()
+    return this.initPromise
+  }
+
+  private async doInit(): Promise<void> {
     const storage = new SecureAuthStorage(join(this.root, CREDENTIAL_FILE))
     try {
       await storage.load()
@@ -305,7 +314,21 @@ export class CloudService {
     } catch (e) {
       this.initError = errorText(e, '云服务初始化失败')
       log('WARN', '云服务初始化失败：' + this.initError)
+      // 关键：失败时必须把 client 置空，否则会留下一个 storage 未接上的半成品实例，
+      // 后面所有 auth 调用都会以
+      // "the session is invalid, expired or issued for another client" 被服务端拒绝，
+      // 而真正的失败原因（这里）早已被吞掉，排查时会被这个误导性报错带偏。
+      this.client = null
+      this.storage = null
     }
+  }
+
+  /** 初始化失败时主动重试一次；已成功则直接返回，不会重复建实例。 */
+  async retryInit(): Promise<void> {
+    if (this.client) return
+    this.initError = null
+    this.initPromise = null
+    await this.init()
   }
 
   /** 进程退出前把 token 落盘，避免每次启动都要重新登录 */
@@ -438,6 +461,9 @@ export class CloudService {
 
   /** 读登录态 + 云端概况。断网时回退到内存快照，界面不会退化成「未登录」。 */
   async status(): Promise<CloudStatus> {
+    // 初始化失败时再给一次机会：DPAPI 解密要走一次 PowerShell，冷启动偶发超时/被杀，
+    // 若就这么把"云端不可用"钉死，用户会一直登不进去。重试仍有节流（见 retryInit）。
+    if (!this.client) await this.retryInit()
     if (!this.client) return this.unavailable()
     let session: CloudSession | null = null
     try {
