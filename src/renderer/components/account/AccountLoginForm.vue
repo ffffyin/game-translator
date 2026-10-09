@@ -44,8 +44,8 @@ function setMsg(ok: boolean, text: string): void {
 /** 「记住邮箱」只影响登录框预填，主进程据此写本机设置。失败不影响登录结果 */
 async function persistRemember(mail: string): Promise<void> {
   try {
-    await settings.setRaw('cloudAccountEmail', remember.value ? mail : '')
-    await settings.setRaw('cloudRememberAccount', remember.value ? 1 : 0)
+    await settings.update('cloudAccountEmail', remember.value ? mail : '')
+    await settings.update('cloudRememberAccount', remember.value ? 1 : 0)
   } catch {
     // 记住账号是便利功能，写不进去不该让登录失败
   }

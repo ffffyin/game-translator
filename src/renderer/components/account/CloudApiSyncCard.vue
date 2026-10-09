@@ -45,7 +45,7 @@ async function write(on: boolean): Promise<void> {
   confirming.value = false
   busy.value = true
   try {
-    await settings.setRaw('cloudSyncApi', on ? 1 : 0)
+    await settings.update('cloudSyncApi', on ? 1 : 0)
     msg.value = on
       ? { kind: 'ok', text: '已开启：下次「保存到云端」会连带上传 API 配置（含密钥明文）' }
       : {
