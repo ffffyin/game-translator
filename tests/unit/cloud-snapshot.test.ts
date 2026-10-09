@@ -4,6 +4,7 @@ import { tmpdir } from 'os'
 import { Db } from '../../src/main/services/db-wrapper'
 import { applyMigrations } from '../../src/main/db/schema'
 import { buildSnapshot, applySnapshot } from '../../src/main/services/cloud-snapshot'
+import { dpapiEncrypt, dpapiDecrypt } from '../../src/main/services/crypto'
 import { snapshotSummary, validateSnapshot, type CloudSnapshot } from '../../src/shared/cloud'
 
 let seq = 0
@@ -61,6 +62,30 @@ function seedLocal(db: Db): void {
   db.prepare('INSERT INTO settings (key, value, updated_at) VALUES (?,?,?)').run('minimizeToTray', '1', now)
 }
 
+/** 写一条默认模型配置（API Key 用 DPAPI 加密，与真实本机存储一致） */
+async function seedModelConfig(db: Db, apiKey: string): Promise<string> {
+  const enc = await dpapiEncrypt(apiKey)
+  db.prepare(
+    `INSERT INTO model_configs (name, provider, base_url, api_key_enc, text_model, vision_enabled, vision_model, is_default, created_at, updated_at)
+     VALUES (?,?,?,?,?,?,?,1,?,?)`
+  ).run('默认', 'openai', 'https://api.example.com/v1', enc, 'gpt-4o-mini', 1, 'gpt-4o', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')
+  return enc
+}
+
+function setApiSync(db: Db, on: boolean): void {
+  db.prepare(
+    `INSERT INTO settings (key, value, updated_at) VALUES ('cloudSyncApi', ?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+  ).run(on ? '1' : '0', '2026-01-01T00:00:00.000Z')
+}
+
+function readStoredKey(db: Db): string | null {
+  const row = db
+    .prepare('SELECT api_key_enc FROM model_configs WHERE is_default=1 LIMIT 1')
+    .get() as { api_key_enc: string | null } | undefined
+  return row?.api_key_enc ?? null
+}
+
 describe('云端快照：本机 → 云端', () => {
   let db: Db
   beforeEach(() => {
@@ -68,8 +93,8 @@ describe('云端快照：本机 → 云端', () => {
     seedLocal(db)
   })
 
-  it('只带自建术语库，内置库不占云端空间', () => {
-    const s = buildSnapshot(db)
+  it('只带自建术语库，内置库不占云端空间', async () => {
+    const s = await buildSnapshot(db)
     expect(s.termLibs.map((l) => l.name)).toEqual(['我的黑话'])
     expect(s.termLibs[0].terms).toEqual([
       { s: 'mid', t: '中路', tag: '位置' },
@@ -77,24 +102,24 @@ describe('云端快照：本机 → 云端', () => {
     ])
   })
 
-  it('设置项只带上云白名单内的，开机自启/托盘不上云', () => {
-    const s = buildSnapshot(db)
+  it('设置项只带上云白名单内的，开机自启/托盘不上云', async () => {
+    const s = await buildSnapshot(db)
     expect(s.settings.languageTarget).toBe('ja')
     expect(s.settings.toxicLevel).toBe('nuclear')
     expect(s.settings.autoStart).toBeUndefined()
     expect(s.settings.minimizeToTray).toBeUndefined()
   })
 
-  it('常用语分页、条目与当前页都被带上', () => {
-    const s = buildSnapshot(db)
+  it('常用语分页、条目与当前页都被带上', async () => {
+    const s = await buildSnapshot(db)
     expect(s.phrasePages.map((p) => p.name)).toEqual(['通用', 'Dota2'])
     expect(s.phrasePages[0].items).toHaveLength(3)
     expect(s.phrasePages[0].items[1]).toEqual({ slot: 2, content: '第2句', enabled: 0 })
     expect(s.activePhrasePage).toBe('通用')
   })
 
-  it('产出的快照能通过校验（自己造的数据不能自己读不了）', () => {
-    const s = buildSnapshot(db)
+  it('产出的快照能通过校验（自己造的数据不能自己读不了）', async () => {
+    const s = await buildSnapshot(db)
     const v = validateSnapshot(JSON.parse(JSON.stringify(s)))
     expect(v.ok).toBe(true)
     if (v.ok) expect(snapshotSummary(v.data)).toEqual(snapshotSummary(s))
@@ -102,18 +127,18 @@ describe('云端快照：本机 → 云端', () => {
 })
 
 describe('云端快照：云端 → 本机', () => {
-  it('覆盖式导入：自建库整体替换，内置库原样保留', () => {
+  it('覆盖式导入：自建库整体替换，内置库原样保留', async () => {
     const db = freshDb()
     seedLocal(db)
 
     const incoming: CloudSnapshot = {
-      ...buildSnapshot(freshDb()),
+      ...(await buildSnapshot(freshDb())),
       termLibs: [{ name: '另一台机器的库', game: 'custom_9', terms: [{ s: 'top', t: '上路' }] }],
       phrasePages: [{ name: '只有一页', note: '', items: [{ slot: 1, content: 'hello', enabled: 1 }] }],
       activePhrasePage: '只有一页',
       settings: { languageTarget: 'en' }
     }
-    applySnapshot(db, incoming)
+    await applySnapshot(db, incoming)
 
     const libs = db
       .prepare('SELECT name, is_builtin FROM term_libraries ORDER BY id ASC')
@@ -148,10 +173,10 @@ describe('云端快照：云端 → 本机', () => {
     expect(auto?.value).toBe('1')
   })
 
-  it('槽位超出 1~8 的条目不绑快捷键，但内容照常导入', () => {
+  it('槽位超出 1~8 的条目不绑快捷键，但内容照常导入', async () => {
     const db = freshDb()
-    applySnapshot(db, {
-      ...buildSnapshot(freshDb()),
+    await applySnapshot(db, {
+      ...(await buildSnapshot(freshDb())),
       phrasePages: [
         {
           name: 'P',
@@ -171,20 +196,114 @@ describe('云端快照：云端 → 本机', () => {
     expect(rows[1]).toEqual({ slot: 3, accelerator: 'Alt+3' })
   })
 
-  it('导入后再导出，内容与导入的快照一致（往返不丢数据）', () => {
+  it('导入后再导出，内容与导入的快照一致（往返不丢数据）', async () => {
     const db = freshDb()
     const incoming: CloudSnapshot = {
-      ...buildSnapshot(freshDb()),
+      ...(await buildSnapshot(freshDb())),
       termLibs: [{ name: 'L', game: 'g', terms: [{ s: 'a', t: '甲' }] }],
       phrasePages: [{ name: 'P', note: 'n', items: [{ slot: 2, content: 'x', enabled: 1 }] }],
       activePhrasePage: 'P',
       settings: { languageTarget: 'fr' }
     }
-    applySnapshot(db, incoming)
-    const out = buildSnapshot(db)
+    await applySnapshot(db, incoming)
+    const out = await buildSnapshot(db)
     expect(out.termLibs).toEqual(incoming.termLibs)
     expect(out.phrasePages).toEqual(incoming.phrasePages)
     expect(out.settings).toEqual(incoming.settings)
     expect(out.activePhrasePage).toBe('P')
+  })
+})
+
+describe('API 配置可选上云', () => {
+  it('开关为 0（默认）时快照里不带任何 API 配置', async () => {
+    const db = freshDb()
+    await seedModelConfig(db, 'sk-top-secret')
+    const s = await buildSnapshot(db)
+    expect(s.apiConfig).toBeNull()
+  })
+
+  it('开关为 1 时带出**明文** API Key（本机密文换机器解不开，上云必须还原）', async () => {
+    const db = freshDb()
+    const enc = await seedModelConfig(db, 'sk-top-secret')
+    setApiSync(db, true)
+
+    const s = await buildSnapshot(db)
+    expect(s.apiConfig).not.toBeNull()
+    expect(s.apiConfig?.apiKey).toBe('sk-top-secret')
+    expect(s.apiConfig?.apiKey).not.toBe(enc)
+    expect(s.apiConfig?.provider).toBe('openai')
+    expect(s.apiConfig?.baseUrl).toBe('https://api.example.com/v1')
+    expect(s.apiConfig?.model).toBe('gpt-4o-mini')
+    expect(s.apiConfig?.visionModel).toBe('gpt-4o')
+  })
+
+  it('开关为 1 但没配过模型时，apiConfig 为 null 而不是空壳对象', async () => {
+    const db = freshDb()
+    setApiSync(db, true)
+    const s = await buildSnapshot(db)
+    expect(s.apiConfig).toBeNull()
+  })
+
+  it('本机开关为 0 时，云端带来的 apiConfig 被忽略，本机 Key 原封不动', async () => {
+    const db = freshDb()
+    const enc = await seedModelConfig(db, 'sk-local-only')
+    setApiSync(db, false)
+
+    await applySnapshot(db, {
+      ...(await buildSnapshot(freshDb())),
+      apiConfig: {
+        provider: 'openai',
+        baseUrl: 'https://evil.example.com/v1',
+        model: 'gpt-4o',
+        visionModel: '',
+        apiKey: 'sk-from-cloud'
+      }
+    })
+
+    expect(readStoredKey(db)).toBe(enc)
+    expect(await dpapiDecrypt(readStoredKey(db)!)).toBe('sk-local-only')
+  })
+
+  it('本机开关为 1 时，云端 apiConfig 写回并以 DPAPI 密文落库', async () => {
+    const db = freshDb()
+    setApiSync(db, true)
+
+    await applySnapshot(db, {
+      ...(await buildSnapshot(freshDb())),
+      apiConfig: {
+        provider: 'deepseek',
+        baseUrl: 'https://api.deepseek.com/v1',
+        model: 'deepseek-chat',
+        visionModel: '',
+        apiKey: 'sk-from-cloud'
+      }
+    })
+
+    const stored = readStoredKey(db)
+    expect(stored).toBeTruthy()
+    expect(stored).not.toBe('sk-from-cloud')
+    expect(await dpapiDecrypt(stored!)).toBe('sk-from-cloud')
+
+    const row = db
+      .prepare('SELECT provider, base_url, text_model FROM model_configs WHERE is_default=1')
+      .get() as { provider: string; base_url: string; text_model: string }
+    expect(row).toEqual({
+      provider: 'deepseek',
+      base_url: 'https://api.deepseek.com/v1',
+      text_model: 'deepseek-chat'
+    })
+  })
+
+  it('带 apiConfig 的快照仍然能通过设置项白名单校验，密钥不混进 settings', async () => {
+    const db = freshDb()
+    await seedModelConfig(db, 'sk-top-secret')
+    setApiSync(db, true)
+    const s = await buildSnapshot(db)
+    expect(s.apiConfig?.apiKey).toBe('sk-top-secret')
+    for (const k of Object.keys(s.settings)) {
+      expect(k).not.toMatch(/key|api|token|secret/i)
+    }
+    const v = validateSnapshot(JSON.parse(JSON.stringify(s)))
+    expect(v.ok).toBe(true)
   })
 })

@@ -112,8 +112,11 @@ const api: ApiContract = {
 
   cloudStatus: () => ipcRenderer.invoke('cloud:status'),
   cloudLocalSummary: () => ipcRenderer.invoke('cloud:localSummary'),
-  cloudSendOtp: (email) => ipcRenderer.invoke('cloud:sendOtp', email),
-  cloudVerifyOtp: (input) => ipcRenderer.invoke('cloud:verifyOtp', input),
+  cloudSendOtp: (email, usage) => ipcRenderer.invoke('cloud:sendOtp', email, usage),
+  cloudSignIn: (input) => ipcRenderer.invoke('cloud:signIn', input),
+  cloudSignUp: (input) => ipcRenderer.invoke('cloud:signUp', input),
+  cloudResetPassword: (input) => ipcRenderer.invoke('cloud:resetPassword', input),
+  cloudChangePassword: (input) => ipcRenderer.invoke('cloud:changePassword', input),
   cloudSignOut: () => ipcRenderer.invoke('cloud:signOut'),
   cloudPush: () => ipcRenderer.invoke('cloud:push'),
   cloudPull: () => ipcRenderer.invoke('cloud:pull'),

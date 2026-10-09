@@ -22,6 +22,12 @@ import { wipeDatabaseFiles } from '../services/install-guard'
 import { isSafeExternalUrl } from '../../shared/links'
 import type { NotifyPayload } from '../../shared/api-contract'
 import type { ModelConfigInput } from '../../shared/model'
+import type {
+  AccountChangePasswordInput,
+  AccountResetInput,
+  AccountSignInInput,
+  AccountSignUpInput
+} from '../../shared/account'
 
 export function registerIpc(
   win: BrowserWindow,
@@ -309,13 +315,16 @@ export function registerIpc(
   // 云端账号与配置同步（全部走异步，失败一律返回 ok:false + 中文原因，不抛给界面）
   handle.handle('cloud:status', () => cloud.status())
   handle.handle('cloud:localSummary', () => cloud.localSummary())
-  handle.handle('cloud:sendOtp', (_e, email: string) => cloud.sendOtp(email))
-  handle.handle(
-    'cloud:verifyOtp',
-    (
-      _e,
-      input: { email: string; verificationId: string; token: string; isExistingUser: boolean }
-    ) => cloud.verifyOtp(input)
+  handle.handle('cloud:sendOtp', (_e, email: string, usage: 'register' | 'reset') =>
+    cloud.sendOtp(email, usage === 'reset' ? 'reset' : 'register')
+  )
+  handle.handle('cloud:signIn', (_e, input: AccountSignInInput) => cloud.signIn(input))
+  handle.handle('cloud:signUp', (_e, input: AccountSignUpInput) => cloud.signUp(input))
+  handle.handle('cloud:resetPassword', (_e, input: AccountResetInput) =>
+    cloud.resetPassword(input)
+  )
+  handle.handle('cloud:changePassword', (_e, input: AccountChangePasswordInput) =>
+    cloud.changePassword(input)
   )
   handle.handle('cloud:signOut', () => cloud.signOut())
   handle.handle('cloud:push', async () => {

@@ -1,14 +1,32 @@
 import { join } from 'path'
 import { app } from 'electron'
-import { createWorkBuddyCloud } from '@tencent-ai/workbuddy-cloud-sdk'
-import type { WorkBuddyCloudClient } from '@tencent-ai/workbuddy-cloud-sdk'
+import {
+  createWorkBuddyCloud,
+  CLOUD_MODULE_PATHS,
+  PUBLISHABLE_KEY_HEADER
+} from '@tencent-ai/workbuddy-cloud-sdk'
+import type { CloudSession, WorkBuddyCloudClient } from '@tencent-ai/workbuddy-cloud-sdk'
 import type { Db } from './db-wrapper'
 import { SecureAuthStorage } from './cloud-storage'
 import { buildSnapshot, applySnapshot } from './cloud-snapshot'
 import { createBackup } from './backup'
 import { invalidateTermCache } from './term-cache'
 import { log } from './logger'
+import { readSetting, writeSetting } from './settings'
 import { APP_VERSION } from '../../shared/version'
+import {
+  validateEmail,
+  validatePassword,
+  validateNickname,
+  normalizeNickname,
+  validateCode,
+  maskEmail,
+  PASSWORD_MAX,
+  type AccountSignInInput,
+  type AccountSignUpInput,
+  type AccountResetInput,
+  type AccountChangePasswordInput
+} from '../../shared/account'
 import {
   CLOUD_SCOPE,
   CLOUD_SNAPSHOT_VERSION,
@@ -17,7 +35,9 @@ import {
   type CloudStatus,
   type CloudSyncResult,
   type CloudSimpleResult,
-  type CloudSummary
+  type CloudSummary,
+  type CloudOtpResult,
+  type CloudAuthResult
 } from '../../shared/cloud'
 
 // 云服务配置：publishableKey 只标识「哪个应用」，本身不携带权限，
@@ -25,6 +45,27 @@ import {
 const CLOUD_ENDPOINT = 'https://game-translator.app.workbuddy.host'
 const CLOUD_PUBLISHABLE_KEY = 'wbpk_j7gSzC4Hd9cFphl7a2wJmo_wLuzfc9Zh2tvfBUXpw1FiIEZJQe6OUfO'
 const CLOUD_OAUTH_RELAY = 'https://www.workbuddy.cn/v2/as/genie-baas/oauth'
+
+// ---------------------------------------------------------------------------
+// 直连 HTTP 只用在这一条链路上：忘记密码。
+//
+// SDK 的 auth 暴露的 resetPasswordForEmail(email) 返回的是
+// `PasswordResetChallenge { updateUser({nonce, password}) }` —— **不给** verificationId，
+// 而是把它关在闭包里。这在两处与我们的界面流程冲突：
+//  1. 发码与重置之间隔着一次 IPC 往返，闭包（函数）没法跨进程传给渲染层；
+//  2. updateUser 内部会在重置成功后立刻自动登录，并把「自动登录失败」当作整体失败
+//     返回 —— 于是「其实已经重置成功」被包装成一次失败，用户会以为没改成功。
+// 所以这里照 SDK 自己用的同一组路径与请求头直连，自己串起
+// 「验码 → 重置 → 用新密码登录」三步。主进程发起请求不带 Origin，与 SDK 一致。
+//
+// 基址与请求头直接复用 SDK 导出的常量，避免我们写死一份、SDK 升级后悄悄错位；
+// 只有三个 /v1/** 子路径没被导出，照 SDK 内部 AUTH_PATHS 原样抄下来。
+// ---------------------------------------------------------------------------
+const AUTH_HTTP_BASE = `${CLOUD_ENDPOINT}${CLOUD_MODULE_PATHS.auth}`
+const AUTH_KEY_HEADER = PUBLISHABLE_KEY_HEADER
+const AUTH_PATH_VERIFICATION = '/v1/verification'
+const AUTH_PATH_VERIFICATION_VERIFY = '/v1/verification/verify'
+const AUTH_PATH_RESET = '/v1/reset'
 
 const CREDENTIAL_FILE = 'cloud-session.enc'
 
@@ -72,14 +113,113 @@ function isAuthFailure(e: unknown): boolean {
 }
 
 const AUTH_EXPIRED = '登录状态已失效，请重新登录'
+const NETWORK_DOWN = '网络不可用，暂时无法连接云端（本地功能不受影响）'
+const GENERIC_FAILURE = '操作失败，请稍后重试'
+const RATE_LIMITED = '发送太频繁，请 1 分钟后再试'
+const OTP_BACKEND_DOWN = '验证码服务暂时不可用，请稍后再试'
+const BAD_CREDENTIALS = '邮箱或密码不正确'
+const TOO_FAST = '操作太快了，请稍后重试'
+const NO_SUCH_ACCOUNT = '该邮箱还没有注册账号'
 
-function describe(e: unknown, fallback: string): string {
-  if (isNetworkish(e)) return '网络不可用，暂时无法连接云端（本地功能不受影响）'
-  if (isAuthFailure(e)) return AUTH_EXPIRED
-  return errorText(e, fallback)
+/** 只认 CJK 表意文字与扩展区：判断「这句是不是中国用户看得懂的话」 */
+const CJK_RE = /[㐀-䶿一-鿿豈-﫿]/
+
+/**
+ * 英文原文判据：一个汉字都没有、但确实有拉丁字母。
+ *
+ * 服务端（含 Postgres / PostgREST 与上游 provider）报错一律是英文，
+ * 例如 "permission denied for table user_settings"、"Username or password
+ * incorrect"、"new_password does not match ^$|^.{4,60}$"。这些直接上屏等于
+ * 把内部实现细节丢给用户，所以一律替换成通用文案，原文只进日志。
+ */
+function isEnglishOnly(s: string): boolean {
+  if (!s || !s.trim()) return false
+  if (CJK_RE.test(s)) return false
+  return /[A-Za-z]/.test(s)
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+function describe(e: unknown, fallback: string): string {
+  if (isNetworkish(e)) return NETWORK_DOWN
+  if (isAuthFailure(e)) return AUTH_EXPIRED
+
+  const err = e as CloudErrorLike
+  const status = typeof err?.status === 'number' ? err.status : -1
+  const kind = typeof err?.kind === 'string' ? err.kind : ''
+  const code = typeof err?.code === 'string' ? err.code : ''
+  const msg = typeof err?.message === 'string' ? err.message : ''
+  const text = `${code} ${msg}`
+
+  // 发码限流：服务端是 1 条/分钟/邮箱，第二次必挂，必须告诉用户等多久
+  if (kind === 'rate-limited' || status === 429 || /per minute/i.test(text)) return RATE_LIMITED
+  // 502 是发码链路不可用的典型表现（不可投递域名如 @example.com 也会吃到）
+  if (status === 502 || kind === 'backend-unavailable') return OTP_BACKEND_DOWN
+  if (code === 'INVALID_USERNAME_OR_PASSWORD' || /Username or password incorrect/i.test(text)) {
+    return BAD_CREDENTIALS
+  }
+  if (/key lookup throttled/i.test(text)) return TOO_FAST
+  if (/user not found|no such user|not registered|用户不存在|账号不存在/i.test(text)) {
+    return NO_SUCH_ACCOUNT
+  }
+  // 注册撞上已注册邮箱：不映射的话用户只会看到一句「操作失败」，不知道该去登录
+  if (/already (exists|registered)|user already|已注册/i.test(text)) {
+    return '该邮箱已注册，请直接登录'
+  }
+
+  if (!msg.trim()) return fallback
+  if (isEnglishOnly(msg)) {
+    log('WARN', `云端错误未命中映射，已替换为通用文案：${msg}`)
+    return GENERIC_FAILURE
+  }
+  return msg
+}
+
+// 直连 HTTP 的错误归一：与 SDK 的 errorKind / normalizeHttpError 保持同一套形状，
+// 这样 describe() 不用区分「SDK 抛的」还是「我们直连撞上的」。
+function kindFromStatus(status: number): string {
+  switch (status) {
+    case 400:
+      return 'invalid-request'
+    case 401:
+      return 'unauthenticated'
+    case 403:
+      return 'permission-denied'
+    case 404:
+      return 'not-found'
+    case 429:
+      return 'rate-limited'
+    case 501:
+      return 'unimplemented'
+    case 502:
+    case 503:
+      return 'backend-unavailable'
+    default:
+      return status >= 500 ? 'backend-unavailable' : 'unknown'
+  }
+}
+
+function pickHttpMessage(payload: unknown, status: number): string {
+  if (payload && typeof payload === 'object') {
+    const p = payload as Record<string, unknown>
+    for (const k of ['error_description', 'message', 'msg'] as const) {
+      const v = p[k]
+      if (typeof v === 'string' && v.trim()) return v
+    }
+    if (typeof p.error === 'string' && p.error.trim()) return p.error
+  }
+  return `HTTP ${status}`
+}
+
+interface RawAuthError {
+  kind: string
+  message: string
+  status: number
+  code?: string
+}
+
+type AuthHttpResult = {
+  data: Record<string, unknown> | null
+  error: RawAuthError | null
+}
 
 export class CloudService {
   private client: WorkBuddyCloudClient | null = null
@@ -126,6 +266,39 @@ export class CloudService {
     if (this.storage) await this.storage.flush()
   }
 
+  // ---------------- 本机账号小档案（纯展示 / 预填，不参与鉴权） ----------------
+
+  private readLocal(key: 'cloudNickname' | 'cloudAccountEmail' | 'cloudRememberAccount'): string {
+    try {
+      return readSetting(this.getDb(), key)
+    } catch (e) {
+      log('WARN', `读取本机设置 ${key} 失败：` + errorText(e, '未知错误'))
+      return ''
+    }
+  }
+
+  private writeLocal(
+    key: 'cloudNickname' | 'cloudAccountEmail' | 'cloudRememberAccount',
+    value: string
+  ): void {
+    try {
+      writeSetting(this.getDb(), key, value)
+    } catch (e) {
+      // 写不进去最多是「下次不预填」，绝不能因此让一次已经成功的登录变成失败
+      log('WARN', `写入本机设置 ${key} 失败：` + errorText(e, '未知错误'))
+    }
+  }
+
+  /** 日志脱敏：abc@qq.com → a***@qq.com。日志里不许出现完整邮箱。 */
+  private redactEmail(email: string): string {
+    return maskEmail(email)
+  }
+
+  private localAccountName(): string | null {
+    const v = this.readLocal('cloudNickname').trim()
+    return v || null
+  }
+
   private unavailable(): CloudStatus {
     return {
       available: false,
@@ -133,6 +306,7 @@ export class CloudService {
       userId: null,
       email: null,
       phone: null,
+      accountName: this.localAccountName(),
       remoteUpdatedAt: null,
       remoteSummary: null,
       online: false,
@@ -147,6 +321,7 @@ export class CloudService {
       userId: null,
       email: null,
       phone: null,
+      accountName: this.localAccountName(),
       remoteUpdatedAt: null,
       remoteSummary: null,
       online,
@@ -157,32 +332,56 @@ export class CloudService {
   /** 读登录态 + 云端概况。断网时回退到内存快照，界面不会退化成「未登录」。 */
   async status(): Promise<CloudStatus> {
     if (!this.client) return this.unavailable()
-    let session
+    let session: CloudSession | null = null
     try {
       const r = await this.client.auth.getSession()
       if (r.error) throw r.error
       session = r.data
     } catch (e) {
       if (isNetworkish(e)) {
-        return (
-          this.cached ?? this.anonymous('网络不可用，暂时无法连接云端（本地功能不受影响）', false)
-        )
+        // 有缓存就带缓存返回，但必须把 online 打成 false —— 界面靠它显示
+        // 「云端暂时不可用」，而 signedIn 保持 true 才不会把人锁在门外。
+        if (this.cached?.signedIn) {
+          return { ...this.cached, online: false, message: NETWORK_DOWN }
+        }
+        if (this.cached) return { ...this.cached, online: false }
+        return this.anonymous(NETWORK_DOWN, false)
       }
       log('WARN', '读取云端会话失败：' + errorText(e, '未知错误'))
-      return this.anonymous(errorText(e, '读取登录状态失败'))
+      return this.anonymous(describe(e, '读取登录状态失败'))
     }
 
     if (!session) {
+      // ⚠️ 断网时 SDK 的 getSession() 会返回 {data:null, error:null} 而**不报错**
+      // （续期失败但本地会话仍在，见 SDK session-manager.onRefreshFailed）。
+      // 这里若直接判成未登录，一次网络抖动就会把已登录用户踢下线 —— 登录是强制的，
+      // 那等于软件直接不可用。所以缓存里明明是已登录，就优先信缓存，只标 offline。
+      if (this.cached?.signedIn) {
+        return { ...this.cached, online: false, message: NETWORK_DOWN }
+      }
       this.cached = this.anonymous('未登录')
       return this.cached
+    }
+
+    // 登录那一刻的 session.user 可能没有 email（上游按标识发码，未必回填），
+    // 补一次 /v1/user/me；拿不到就保持原值，绝不能因此把已登录判成失败。
+    let email: string | null = session.user?.email ?? null
+    if (!email) {
+      try {
+        const u = await this.client.auth.getUser()
+        if (u.data?.email) email = u.data.email
+      } catch (e) {
+        log('WARN', '补读用户邮箱失败（保持登录态）：' + errorText(e, '未知错误'))
+      }
     }
 
     const base: CloudStatus = {
       available: true,
       signedIn: true,
       userId: session.user?.id ?? null,
-      email: session.user?.email ?? null,
+      email,
       phone: session.user?.phone ?? null,
+      accountName: this.localAccountName(),
       remoteUpdatedAt: null,
       remoteSummary: null,
       online: true,
@@ -223,64 +422,308 @@ export class CloudService {
     return r.data as { payload: unknown; updated_at?: string }
   }
 
-  /** 第一步：给邮箱发验证码（不产生会话）。服务端会顺带告诉我们这个邮箱是否已注册。 */
-  async sendOtp(
-    email: string
-  ): Promise<{ ok: boolean; message: string; verificationId: string; isExistingUser: boolean }> {
-    const mail = email.trim()
-    if (!EMAIL_RE.test(mail)) return { ok: false, message: '请输入正确的邮箱地址', verificationId: '', isExistingUser: false }
-    if (!this.client) return { ok: false, message: this.initError ?? '云服务未初始化', verificationId: '', isExistingUser: false }
+  /** 直连 auth 数据面（仅供忘记密码链路使用，理由见文件头注释） */
+  private async postAuth(path: string, body: Record<string, unknown>): Promise<AuthHttpResult> {
+    type Res = Awaited<ReturnType<typeof fetch>>
+    let res: Res
+    try {
+      res = await fetch(AUTH_HTTP_BASE + path, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          [AUTH_KEY_HEADER]: CLOUD_PUBLISHABLE_KEY
+        },
+        body: JSON.stringify(body)
+      })
+    } catch (e) {
+      return {
+        data: null,
+        error: {
+          kind: 'network',
+          message: `request failed before a response was received: ${errorText(e, String(e))}`,
+          status: 0
+        }
+      }
+    }
+    let payload: unknown = null
+    try {
+      payload = await res.json()
+    } catch {
+      payload = null
+    }
+    if (!res.ok) {
+      const rec = (payload ?? {}) as Record<string, unknown>
+      const code = typeof rec.error === 'string' ? rec.error : undefined
+      return {
+        data: null,
+        error: {
+          kind: kindFromStatus(res.status),
+          message: pickHttpMessage(payload, res.status),
+          status: res.status,
+          ...(code ? { code } : {})
+        }
+      }
+    }
+    return { data: (payload ?? {}) as Record<string, unknown>, error: null }
+  }
+
+  /**
+   * 第一步：给邮箱发验证码（不产生会话）。
+   *
+   * usage='register' 走 SDK sendOtp（usage=email），返回值会顺带告诉我们邮箱是否已注册；
+   * usage='reset' 走「忘记密码」专用发码（usage=PASSWORD_RESET / target=USER）。
+   */
+  async sendOtp(email: string, usage: 'register' | 'reset'): Promise<CloudOtpResult> {
+    const bad = (message: string): CloudOtpResult => ({
+      ok: false,
+      message,
+      verificationId: '',
+      isExistingUser: false
+    })
+    const mail = (email ?? '').trim()
+    const v = validateEmail(mail)
+    if (!v.ok) return bad(v.message)
+    if (!this.client) return bad(this.initError ?? '云服务未初始化')
+
+    if (usage === 'reset') return this.sendResetOtp(mail, bad)
+
     try {
       const r = await this.client.auth.sendOtp({ email: mail })
-      if (r.error) return { ok: false, message: describe(r.error, '发送验证码失败'), verificationId: '', isExistingUser: false }
+      if (r.error) return bad(describe(r.error, '发送验证码失败'))
       return {
         ok: true,
-        message: r.data.isExistingUser ? '验证码已发送，请输入后登录' : '验证码已发送，验证后自动创建账号',
+        message: r.data.isExistingUser
+          ? '验证码已发送，该邮箱已注册，可直接登录'
+          : '验证码已发送，验证后自动创建账号',
         verificationId: r.data.verificationId,
         isExistingUser: r.data.isExistingUser
       }
     } catch (e) {
-      return { ok: false, message: describe(e, '发送验证码失败'), verificationId: '', isExistingUser: false }
+      return bad(describe(e, '发送验证码失败'))
     }
   }
 
-  /** 第二步：验码登录/注册。成功后立刻落盘 token，并回读一次状态。 */
-  async verifyOtp(input: {
-    email: string
-    verificationId: string
-    token: string
-    isExistingUser: boolean
-  }): Promise<{ ok: boolean; message: string; status: CloudStatus }> {
+  /** 忘记密码发码：直连，因为 SDK 只给闭包不给 verificationId（见文件头） */
+  private async sendResetOtp(
+    mail: string,
+    bad: (m: string) => CloudOtpResult
+  ): Promise<CloudOtpResult> {
+    const r = await this.postAuth(AUTH_PATH_VERIFICATION, {
+      email: mail,
+      usage: 'PASSWORD_RESET',
+      target: 'USER'
+    })
+    if (r.error) return bad(describe(r.error, '发送验证码失败'))
+    const id = typeof r.data?.verification_id === 'string' ? r.data.verification_id : ''
+    if (!id) {
+      // 上游没给 id 时给出的是英文原文，这里按「服务不可用」统一文案
+      return bad(describe({ kind: 'backend-unavailable', status: 502, message: '' }, '发送验证码失败'))
+    }
+    return {
+      ok: true,
+      message: '验证码已发送，请输入后重置密码',
+      verificationId: id,
+      // 重置密码只可能对已注册邮箱发起（target=USER），未注册会被上游拒绝
+      isExistingUser: true
+    }
+  }
+
+  /** 登录成功后的收尾：落盘 token → 回读会话 → 记本机账号档案 */
+  private async finalizeSignIn(email: string): Promise<boolean> {
+    await this.storage?.flush()
+    try {
+      const s = await this.client!.auth.getSession()
+      if (s.error || !s.data) {
+        log('WARN', '登录成功但回读会话失败：' + errorText(s.error, '会话为空'))
+        return false
+      }
+    } catch (e) {
+      log('WARN', '登录成功但回读会话失败：' + errorText(e, '未知错误'))
+      return false
+    }
+    this.writeLocal('cloudAccountEmail', email)
+    return true
+  }
+
+  /** 邮箱 + 密码登录 */
+  async signIn(input: AccountSignInInput): Promise<CloudAuthResult> {
+    const fail = async (message: string): Promise<CloudAuthResult> => ({
+      ok: false,
+      message,
+      status: await this.status()
+    })
     if (!this.client) {
       return { ok: false, message: this.initError ?? '云服务未初始化', status: this.unavailable() }
     }
-    const email = input.email.trim()
-    const code = input.token.trim()
-    if (!EMAIL_RE.test(email)) return { ok: false, message: '邮箱地址不正确，请重新获取验证码', status: await this.status() }
-    if (!/^\d{4,8}$/.test(code)) return { ok: false, message: '验证码为 4~8 位数字', status: await this.status() }
-    if (!input.verificationId) return { ok: false, message: '验证码已失效，请重新获取', status: await this.status() }
+
+    const email = (input?.email ?? '').trim()
+    const password = typeof input?.password === 'string' ? input.password : ''
+
+    const ev = validateEmail(email)
+    if (!ev.ok) return fail(ev.message)
+    if (!password) return fail('请输入密码')
+    // 下限刻意不在这里卡：后端允许 4 位，老账号若有更短的密码不该被前端锁死，
+    // 交给服务端判，届时命中「邮箱或密码不正确」。上限必须在本地卡住 ——
+    // 超长会让后端把正则原文回给用户。
+    if ([...password].length > PASSWORD_MAX) return fail(`密码最多 ${PASSWORD_MAX} 位`)
+
+    try {
+      const r = await this.client.auth.signInWithPassword({ email, password })
+      if (r.error) return fail(describe(r.error, '登录失败'))
+      if (!(await this.finalizeSignIn(email))) {
+        return fail('登录成功但无法建立会话，请重试')
+      }
+      const remember = input?.remember === true
+      this.writeLocal('cloudRememberAccount', remember ? '1' : '0')
+      // 不记住就立刻清掉邮箱：勾选项取消后本机不该继续留着账号标识
+      if (!remember) this.writeLocal('cloudAccountEmail', '')
+      log('INFO', '云端登录成功：' + this.redactEmail(email))
+      return { ok: true, message: '登录成功', status: await this.status() }
+    } catch (e) {
+      return fail(describe(e, '登录失败'))
+    }
+  }
+
+  /** 注册：邮箱 + 验证码 + 密码（纯账号名+密码会被上游拒绝）。昵称只存本机展示。 */
+  async signUp(input: AccountSignUpInput): Promise<CloudAuthResult> {
+    const fail = async (message: string): Promise<CloudAuthResult> => ({
+      ok: false,
+      message,
+      status: await this.status()
+    })
+    if (!this.client) {
+      return { ok: false, message: this.initError ?? '云服务未初始化', status: this.unavailable() }
+    }
+
+    const nickname = normalizeNickname(input?.nickname ?? '')
+    const email = (input?.email ?? '').trim()
+    const password = typeof input?.password === 'string' ? input.password : ''
+    const code = (input?.code ?? '').trim()
+    const verificationId = (input?.verificationId ?? '').trim()
+
+    const nv = validateNickname(nickname)
+    if (!nv.ok) return fail(nv.message)
+    const ev = validateEmail(email)
+    if (!ev.ok) return fail(ev.message)
+    const pv = validatePassword(password)
+    if (!pv.ok) return fail(pv.message)
+    const cv = validateCode(code)
+    if (!cv.ok) return fail(cv.message)
+    if (!verificationId) return fail('验证码已失效，请重新获取')
+
+    // 验码不通过不是登录态失效，别把用户误导去"重新登录"
+    const soft = async (e: unknown, fallback: string): Promise<CloudAuthResult> => {
+      const m = describe(e, fallback)
+      return fail(m === AUTH_EXPIRED ? '验证码不正确或已过期，请重新获取' : m)
+    }
 
     try {
       const r = await this.client.auth.verifyOtp({
-        verificationId: input.verificationId,
+        verificationId,
         token: code,
         email,
-        isExistingUser: input.isExistingUser
+        isExistingUser: false,
+        password
       })
-      if (r.error) {
-        const m = describe(r.error, '验证码校验失败')
-        // 验证码错/过期不是登录态失效，别把用户误导去"重新登录"
-        return {
-          ok: false,
-          message: m === AUTH_EXPIRED ? '验证码不正确或已过期，请重新获取' : m,
-          status: await this.status()
-        }
+      if (r.error) return soft(r.error, '注册失败')
+      if (!(await this.finalizeSignIn(email))) {
+        return fail('注册成功但无法建立会话，请重试')
       }
-      await this.storage?.flush()
-      log('INFO', `云端登录成功：${email}`)
-      return { ok: true, message: '登录成功', status: await this.status() }
+      this.writeLocal('cloudNickname', nickname)
+      this.writeLocal('cloudRememberAccount', '1')
+      log('INFO', '云端注册成功：' + this.redactEmail(email))
+      // 刻意不自动 push：注册完就上传一份快照不是用户此刻的意思表示
+      return { ok: true, message: '注册成功，已自动登录', status: await this.status() }
     } catch (e) {
-      return { ok: false, message: describe(e, '登录失败'), status: await this.status() }
+      return soft(e, '注册失败')
+    }
+  }
+
+  /** 忘记密码：验码 → 重置 → 用新密码登录。三步分开，任何一步都能给用户准确反馈。 */
+  async resetPassword(input: AccountResetInput): Promise<CloudAuthResult> {
+    const fail = async (message: string): Promise<CloudAuthResult> => ({
+      ok: false,
+      message,
+      status: await this.status()
+    })
+    if (!this.client) {
+      return { ok: false, message: this.initError ?? '云服务未初始化', status: this.unavailable() }
+    }
+
+    const email = (input?.email ?? '').trim()
+    const code = (input?.code ?? '').trim()
+    const verificationId = (input?.verificationId ?? '').trim()
+    const newPassword = typeof input?.newPassword === 'string' ? input.newPassword : ''
+
+    const ev = validateEmail(email)
+    if (!ev.ok) return fail(ev.message)
+    const cv = validateCode(code)
+    if (!cv.ok) return fail(cv.message)
+    const pv = validatePassword(newPassword)
+    if (!pv.ok) return fail(pv.message)
+    if (!verificationId) return fail('验证码已失效，请重新获取')
+
+    // 第一步：验证码换一次性 verification_token（它不是会话，不能拿去发请求）
+    const verified = await this.postAuth(AUTH_PATH_VERIFICATION_VERIFY, {
+      verification_id: verificationId,
+      verification_code: code
+    })
+    if (verified.error) {
+      const m = describe(verified.error, '验证码校验失败')
+      return fail(m === AUTH_EXPIRED ? '验证码不正确或已过期，请重新获取' : m)
+    }
+    const token =
+      typeof verified.data?.verification_token === 'string' ? verified.data.verification_token : ''
+    if (!token) {
+      return fail(describe({ kind: 'backend-unavailable', status: 502, message: '' }, '验证码校验失败'))
+    }
+
+    // 第二步：真正改密码。这一步成功就**已经重置成功**了。
+    const reset = await this.postAuth(AUTH_PATH_RESET, {
+      email,
+      new_password: newPassword,
+      verification_token: token
+    })
+    if (reset.error) return fail(describe(reset.error, '重置密码失败'))
+
+    // 第三步：用自己的 signIn 登录，不走 SDK 的自动登录闭包。
+    // 登录失败也**不能**报失败 —— 密码确实已经改了，报失败会让用户以为没改成功，
+    // 然后再点一次「忘记密码」，白白吃掉一次发码额度。
+    const signed = await this.signIn({ email, password: newPassword, remember: true })
+    if (signed.ok) {
+      log('INFO', '密码重置成功并已自动登录：' + this.redactEmail(email))
+      return { ok: true, message: '密码已重置，已自动登录', status: signed.status }
+    }
+    log('WARN', '密码已重置但自动登录失败：' + signed.message)
+    return { ok: true, message: '密码已重置，请用新密码登录', status: signed.status }
+  }
+
+  /** 已登录状态下改密码：旧密码做 sudo 校验。成功保持登录态，不 wipe、不 signOut。 */
+  async changePassword(input: AccountChangePasswordInput): Promise<CloudSimpleResult> {
+    if (!this.client) return { ok: false, message: this.initError ?? '云服务未初始化' }
+    const oldPassword = typeof input?.oldPassword === 'string' ? input.oldPassword : ''
+    const newPassword = typeof input?.newPassword === 'string' ? input.newPassword : ''
+    if (!oldPassword) return { ok: false, message: '请输入当前密码' }
+    const pv = validatePassword(newPassword)
+    if (!pv.ok) return { ok: false, message: pv.message }
+
+    const fail = (e: unknown): CloudSimpleResult => {
+      if (isNetworkish(e)) return { ok: false, message: NETWORK_DOWN }
+      if (isAuthFailure(e)) return { ok: false, message: AUTH_EXPIRED }
+      // sudo 校验失败基本只有一种可能：旧密码不对。原文（英文）只进日志。
+      log('WARN', '修改密码失败（原文）：' + errorText(e, '未知错误'))
+      return { ok: false, message: '当前密码不正确，请重新输入' }
+    }
+
+    try {
+      const r = await this.client.auth.resetPasswordForOld({ oldPassword, newPassword })
+      if (r.error) return fail(r.error)
+      // 保持登录态：只把（可能换过的）会话落盘，不清凭据、不登出
+      await this.storage?.flush()
+      log('INFO', '密码修改成功，已保持登录态')
+      return { ok: true, message: '密码已修改' }
+    } catch (e) {
+      return fail(e)
     }
   }
 
@@ -293,17 +736,20 @@ export class CloudService {
       log('WARN', '云端登出请求失败（仍会清理本机凭据）：' + errorText(e, '未知错误'))
     }
     await this.storage?.wipe()
+    // 昵称是纯展示数据，清了没意义（下次登录还要重新填）；邮箱由 remember 开关决定去留
     this.cached = this.anonymous('已退出登录')
     return { ok: true, message: '已退出登录' }
   }
 
   // ---------------- 配置快照 ----------------
 
-  /** 上传：用本机数据覆盖云端。API Key / 模型配置 / 用量 / 备份都不参与。 */
+  /** 上传：用本机数据覆盖云端。API Key 只在用户打开开关时才随 apiConfig 上云。 */
   async push(): Promise<CloudSyncResult> {
     if (!this.client) return { ok: false, message: this.initError ?? '云服务未初始化' }
-    const snap = buildSnapshot(this.getDb())
+    const snap = await buildSnapshot(this.getDb())
     const summary = snapshotSummary(snap)
+    // 快照里带了 API 配置就必须让用户知道：密钥已经以明文离开本机
+    const withApi = !!snap.apiConfig
 
     let userId: string | null = null
     try {
@@ -329,8 +775,18 @@ export class CloudService {
         .maybeSingle()
       if (r.error) return { ok: false, message: describe(r.error, '保存失败') }
       const updatedAt = (r.data as { updated_at?: string } | null)?.updated_at ?? new Date().toISOString()
-      log('INFO', `配置已保存到云端（术语库 ${summary.termLibs} 个 / 常用语 ${summary.phrases} 条）`)
-      return { ok: true, message: '已保存到云端', summary, updatedAt }
+      log(
+        'INFO',
+        `配置已保存到云端（术语库 ${summary.termLibs} 个 / 常用语 ${summary.phrases} 条` +
+          (withApi ? '，含 API 配置（密钥已明文上传云端）' : '') +
+          '）'
+      )
+      return {
+        ok: true,
+        message: withApi ? '已保存到云端（含 API 配置，密钥已明文上传）' : '已保存到云端',
+        summary,
+        updatedAt
+      }
     } catch (e) {
       return { ok: false, message: describe(e, '保存失败') }
     }
@@ -361,14 +817,16 @@ export class CloudService {
 
     const snap = v.data
     try {
-      applySnapshot(db, snap)
+      await applySnapshot(db, snap)
     } catch (e) {
       return { ok: false, message: '写入本机失败：' + errorText(e, '未知错误') }
     }
     invalidateTermCache()
     return {
       ok: true,
-      message: '已用云端配置覆盖本机（覆盖前的本机数据已备份）',
+      message: snap.apiConfig
+        ? '已用云端配置覆盖本机（含 API 配置，覆盖前的本机数据已备份）'
+        : '已用云端配置覆盖本机（覆盖前的本机数据已备份）',
       summary: snapshotSummary(snap),
       updatedAt: row.updated_at
     }
@@ -387,8 +845,8 @@ export class CloudService {
   }
 
   /** 供界面展示：本机当前将要上传的内容有多少 */
-  localSummary(): CloudSummary {
-    return snapshotSummary(buildSnapshot(this.getDb()))
+  async localSummary(): Promise<CloudSummary> {
+    return snapshotSummary(await buildSnapshot(this.getDb()))
   }
 
   snapshotVersion(): number {

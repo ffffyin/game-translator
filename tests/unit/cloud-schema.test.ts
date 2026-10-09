@@ -101,6 +101,76 @@ describe('云端快照校验', () => {
   })
 })
 
+describe('可选的 API 配置载荷', () => {
+  it('缺失时解析为 null，不为 undefined（老数据必须能正常导入）', () => {
+    const r = validateSnapshot({
+      version: CLOUD_SNAPSHOT_VERSION,
+      settings: {},
+      termLibs: [],
+      phrasePages: []
+    })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.data.apiConfig).toBeNull()
+  })
+
+  it('类型不对（字符串 / 数组 / null）一律解析为 null，而不是让整份快照失败', () => {
+    for (const bad of ['not-an-object', [], null, 42, true]) {
+      const r = validateSnapshot({
+        version: CLOUD_SNAPSHOT_VERSION,
+        settings: {},
+        termLibs: [],
+        phrasePages: [],
+        apiConfig: bad
+      })
+      expect(r.ok).toBe(true)
+      if (r.ok) expect(r.data.apiConfig).toBeNull()
+    }
+  })
+
+  it('字段类型不对时填空串，不丢整段配置', () => {
+    const r = validateSnapshot({
+      version: CLOUD_SNAPSHOT_VERSION,
+      settings: {},
+      termLibs: [],
+      phrasePages: [],
+      apiConfig: { provider: 'openai', baseUrl: 123, model: null, visionModel: {}, apiKey: 'sk-1' }
+    })
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.data.apiConfig).toEqual({
+        provider: 'openai',
+        baseUrl: '',
+        model: '',
+        visionModel: '',
+        apiKey: 'sk-1'
+      })
+    }
+  })
+
+  it('带 apiConfig 时 settings 里仍不含任何凭据字段（密钥只允许走独立字段）', () => {
+    const r = validateSnapshot({
+      version: CLOUD_SNAPSHOT_VERSION,
+      settings: { languageTarget: 'ja', provider: 'openai', api_key: 'sk-leak', cloudSyncApi: '1' },
+      termLibs: [],
+      phrasePages: [],
+      apiConfig: { provider: 'openai', baseUrl: 'u', model: 'm', visionModel: '', apiKey: 'sk-1' }
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.data.settings).toEqual({ languageTarget: 'ja' })
+    for (const k of Object.keys(r.data.settings)) {
+      expect(k).not.toMatch(/key|api|token|secret/i)
+    }
+    expect(r.data.apiConfig?.apiKey).toBe('sk-1')
+  })
+
+  it('快照版本仍为 1：apiConfig 是可选字段，加字段不该升版本', () => {
+    expect(CLOUD_SNAPSHOT_VERSION).toBe(1)
+    expect(emptySnapshot().version).toBe(1)
+    expect(emptySnapshot().apiConfig).toBeNull()
+  })
+})
+
 describe('离线状态', () => {
   it('断网时返回未登录但保留可读原因，界面据此显示提示而不是白屏', () => {
     const s = offlineStatus('网络不可用')

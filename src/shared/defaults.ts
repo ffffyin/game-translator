@@ -13,6 +13,22 @@ export interface AppSettings {
   autoStart: number // 0 | 1
   minimizeToTray: number // 0 | 1
   termUpdateUrl: string // 术语库更新清单 URL
+  // 以下三个是**本机键**：既不进云快照白名单（见 CLOUD_SETTING_KEYS），也不参与鉴权。
+  // 云端没有可写的账号名字段，昵称只在界面上展示；记住的邮箱只用于预填登录框。
+  cloudNickname: string // 展示用昵称
+  cloudAccountEmail: string // 「记住账号」时保留的邮箱
+  cloudRememberAccount: number // 0 | 1：是否记住邮箱
+  /**
+   * 0 | 1：是否把模型配置（含 API Key **明文**）随快照上传到云端。
+   *
+   * 默认 0，且**只能由用户显式打开**。开关为 1 时 API Key 会以明文离开本机 ——
+   * 本机存的密文是 DPAPI 加密的，换台机器根本解不开，上云必须还原成明文，
+   * 这正是界面上必须给出免责声明与二次确认的原因。
+   *
+   * 它是**本机键**：自己不上云（不在 CLOUD_SETTING_KEYS 里），只决定快照里
+   * 那个独立的 `apiConfig` 字段要不要带。
+   */
+  cloudSyncApi: number
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -28,7 +44,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   phraseAutoEnter: 0,
   autoStart: 0,
   minimizeToTray: 1,
-  termUpdateUrl: ''
+  termUpdateUrl: '',
+  cloudNickname: '',
+  cloudAccountEmail: '',
+  cloudRememberAccount: 1,
+  cloudSyncApi: 0
 }
 
 export const SETTING_KEYS = Object.keys(DEFAULT_SETTINGS) as Array<keyof AppSettings>

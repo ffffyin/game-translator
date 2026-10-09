@@ -1,6 +1,7 @@
 // 数据库迁移：PRAGMA user_version 递增
 // 每个迁移必须幂等（IF NOT EXISTS），并在一个事务内执行
 import type { Db } from '../services/db-wrapper'
+import { seedAccountSettings } from '../services/settings'
 
 export const CURRENT_SCHEMA_VERSION = 3
 
@@ -103,7 +104,6 @@ export const MIGRATIONS: Record<number, string[]> = {
 export function applyMigrations(db: Db): void {
   const row = db.pragmaGet<{ user_version: number }>('user_version')
   const version = row.user_version
-  if (version >= CURRENT_SCHEMA_VERSION) return
 
   for (let v = version + 1; v <= CURRENT_SCHEMA_VERSION; v++) {
     const statements = MIGRATIONS[v]
@@ -122,4 +122,11 @@ export function applyMigrations(db: Db): void {
     })
     tx()
   }
+
+  // 补新增的设置键，且必须在迁移**之后**：
+  //  - 放迁移前会撞 no such table —— 全新数据库的第一件事就是由迁移 1 建 settings 表；
+  //  - 又不能塞进版本分支里 —— 老库早已停在 user_version = CURRENT 上，
+  //    那样这批用户升级后永远拿不到新键，一读就是 undefined。
+  // 放在循环外无条件执行，两种库都能补上。
+  seedAccountSettings(db)
 }
