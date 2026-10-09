@@ -114,6 +114,8 @@ function isAuthFailure(e: unknown): boolean {
 
 const AUTH_EXPIRED = '登录状态已失效，请重新登录'
 const NETWORK_DOWN = '网络不可用，暂时无法连接云端（本地功能不受影响）'
+/** 冷启动即断网、凭据还没过期时的兜底提示 */
+const OFFLINE_CACHED = '离线状态，已使用本机保存的登录凭据'
 const GENERIC_FAILURE = '操作失败，请稍后重试'
 const RATE_LIMITED = '发送太频繁，请 1 分钟后再试'
 const OTP_BACKEND_DOWN = '验证码服务暂时不可用，请稍后再试'
@@ -294,6 +296,66 @@ export class CloudService {
     return maskEmail(email)
   }
 
+  /**
+   * 冷启动 + 断网时的兜底：直接读本机凭据文件里 SDK 存的那份会话。
+   *
+   * 适用场景：进程刚起来、内存缓存还是空的，而 token 恰好进入了续期窗口
+   * （EXPIRY_MARGIN_MS = 90s）。此时 SDK 的 getSession() 会去续期、失败，然后
+   * **不报错地返回 null**（它刻意保留了本地会话）。登录是强制的，若这里跟着
+   * 判成未登录，断网就等于软件打不开。
+   *
+   * ⚠️ 只用于「我是谁」的展示与放行：不伪造会话、不回写 storage、不改 SDK 的
+   * 续期冷却。云端读写该失败还是会失败，界面会如实显示 online:false。
+   */
+  private localSessionIdentity(): { userId: string | null; email: string | null; expiresAt: number } | null {
+    if (!this.storage) return null
+    // 键名不写死前缀：从 SDK 实际落过的键里挑（实测为
+    // `workbuddy-cloud.session.<publishableKey>`，见 cloud-storage.keys() 的注释）
+    const key = this.storage
+      .keys()
+      .find((k) => k.includes('session') && k.endsWith(CLOUD_PUBLISHABLE_KEY))
+    if (!key) return null
+    const raw = this.storage.getItem(key)
+    if (!raw) return null
+    try {
+      const s = JSON.parse(raw) as Partial<CloudSession>
+      return {
+        expiresAt: typeof s.expiresAt === 'number' ? s.expiresAt : 0,
+        userId: typeof s.user?.id === 'string' ? s.user.id : null,
+        email: typeof s.user?.email === 'string' ? s.user.email : null
+      }
+    } catch (e) {
+      log('WARN', '解析本机会话凭据失败：' + errorText(e, '未知错误'))
+      return null
+    }
+  }
+
+  /**
+   * 冷启动即断网的兜底：本机凭据还没过期就按「已登录 + online:false」放行。
+   *
+   * 登录是强制的，这里不放行的话「断网」就等于「软件打不开」。拿不到有效凭据
+   * 返回 null，由调用方按未登录处理。结果会写回 `cached`，后续刷新直接走缓存。
+   */
+  private offlineFromLocalCredential(): CloudStatus | null {
+    const local = this.localSessionIdentity()
+    if (!local || local.expiresAt <= Date.now()) return null
+    const offline: CloudStatus = {
+      available: true,
+      signedIn: true,
+      userId: local.userId,
+      email: local.email,
+      phone: null,
+      accountName: this.localAccountName(),
+      remoteUpdatedAt: null,
+      remoteSummary: null,
+      online: false,
+      message: OFFLINE_CACHED
+    }
+    log('INFO', '断网冷启动，已使用本机保存的登录凭据放行')
+    this.cached = offline
+    return offline
+  }
+
   private localAccountName(): string | null {
     const v = this.readLocal('cloudNickname').trim()
     return v || null
@@ -345,7 +407,7 @@ export class CloudService {
           return { ...this.cached, online: false, message: NETWORK_DOWN }
         }
         if (this.cached) return { ...this.cached, online: false }
-        return this.anonymous(NETWORK_DOWN, false)
+        return this.offlineFromLocalCredential() ?? this.anonymous(NETWORK_DOWN, false)
       }
       log('WARN', '读取云端会话失败：' + errorText(e, '未知错误'))
       return this.anonymous(describe(e, '读取登录状态失败'))
@@ -359,6 +421,8 @@ export class CloudService {
       if (this.cached?.signedIn) {
         return { ...this.cached, online: false, message: NETWORK_DOWN }
       }
+      const offline = this.offlineFromLocalCredential()
+      if (offline) return offline
       this.cached = this.anonymous('未登录')
       return this.cached
     }

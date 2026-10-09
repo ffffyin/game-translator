@@ -79,6 +79,14 @@ function setApiSync(db: Db, on: boolean): void {
   ).run(on ? '1' : '0', '2026-01-01T00:00:00.000Z')
 }
 
+/** 迁移已经把 cloudNickname 播种成空串，所以这里一律用 upsert */
+function setNickname(db: Db, name: string): void {
+  db.prepare(
+    `INSERT INTO settings (key, value, updated_at) VALUES ('cloudNickname', ?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+  ).run(name, '2026-01-01T00:00:00.000Z')
+}
+
 function readStoredKey(db: Db): string | null {
   const row = db
     .prepare('SELECT api_key_enc FROM model_configs WHERE is_default=1 LIMIT 1')
@@ -211,6 +219,55 @@ describe('云端快照：云端 → 本机', () => {
     expect(out.phrasePages).toEqual(incoming.phrasePages)
     expect(out.settings).toEqual(incoming.settings)
     expect(out.activePhrasePage).toBe('P')
+  })
+})
+
+describe('昵称随快照往返（仅展示，不参与鉴权）', () => {
+  it('本机有昵称时写进 snap.accountName；为空则写 null', async () => {
+    const db = freshDb()
+    db.prepare(
+      `INSERT INTO settings (key, value, updated_at) VALUES ('cloudNickname', ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+    ).run('老王', '2026-01-01T00:00:00.000Z')
+    expect((await buildSnapshot(db)).accountName).toBe('老王')
+
+    const empty = freshDb()
+    expect((await buildSnapshot(empty)).accountName).toBeNull()
+  })
+
+  it('云端带来昵称时写回本机 cloudNickname', async () => {
+    const db = freshDb()
+    await applySnapshot(db, {
+      ...(await buildSnapshot(freshDb())),
+      accountName: '云端老王'
+    })
+    const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('cloudNickname') as
+      | { value: string }
+      | undefined
+    expect(row?.value).toBe('云端老王')
+  })
+
+  it('云端没有昵称时**不覆盖**本机已有的（拉一次云端不该清掉用户刚改的昵称）', async () => {
+    const db = freshDb()
+    setNickname(db, '本机老王')
+    for (const accountName of [null, undefined, '', '   ']) {
+      await applySnapshot(db, {
+        ...(await buildSnapshot(freshDb())),
+        accountName
+      })
+      const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('cloudNickname') as
+        | { value: string }
+        | undefined
+      expect(row?.value).toBe('本机老王')
+    }
+  })
+
+  it('昵称不混进 settings 白名单：即使本机存了，快照的 settings 里也不该出现', async () => {
+    const db = freshDb()
+    setNickname(db, '老王')
+    const s = await buildSnapshot(db)
+    expect(s.settings.cloudNickname).toBeUndefined()
+    expect(s.accountName).toBe('老王')
   })
 })
 

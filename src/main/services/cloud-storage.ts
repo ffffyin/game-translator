@@ -59,6 +59,16 @@ export class SecureAuthStorage implements CloudAuthStorage {
     return v === undefined ? null : v
   }
 
+  /**
+   * 列出内存里已有的键（只读诊断，不参与 SDK 的存取路径）。
+   *
+   * 唯一用途：断网又冷启动时，CloudService 要靠它找出「SDK 把会话存在哪条键下」，
+   * 然后把那份会话读出来告诉界面「你是谁」。不猜键名 —— 猜错就是静默失效。
+   */
+  keys(): string[] {
+    return [...this.cache.keys()]
+  }
+
   setItem(key: string, value: string): void {
     if (this.cache.get(key) === value) return
     this.cache.set(key, value)

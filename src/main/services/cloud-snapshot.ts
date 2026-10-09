@@ -1,7 +1,7 @@
 import type { Db } from './db-wrapper'
 import { PHRASE_SLOTS } from './phrases'
 import { dpapiDecrypt, dpapiEncrypt } from './crypto'
-import { readSetting } from './settings'
+import { readSetting, writeSetting } from './settings'
 import { log } from './logger'
 import {
   emptySnapshot,
@@ -25,6 +25,37 @@ interface ModelConfigApiRow {
   text_model: string | null
   vision_model: string | null
   api_key_enc: string | null
+}
+
+/**
+ * 读本机昵称。它**不进 settings 白名单**，而是走快照里独立的 `accountName` 字段 ——
+ * 白名单是「设置项同步」，昵称是「我是谁」的展示信息，混在一起会让
+ * `cloudNickname` 跟着设置项一起被广播到所有同步路径。
+ */
+function readNickname(db: Db): string | null {
+  try {
+    const v = readSetting(db, 'cloudNickname').trim()
+    return v || null
+  } catch (e) {
+    log('WARN', '读取本机昵称失败，本次不上传：' + String(e))
+    return null
+  }
+}
+
+/**
+ * 写回云端带来的昵称。
+ *
+ * 只有**非空**才写：快照里没有昵称（老数据）时覆盖本机会把用户刚改好的昵称清掉。
+ */
+function writeNickname(db: Db, name: string | null | undefined): void {
+  if (typeof name !== 'string') return
+  const v = name.trim()
+  if (!v) return
+  try {
+    writeSetting(db, 'cloudNickname', v)
+  } catch (e) {
+    log('WARN', '写入云端下发的昵称失败：' + String(e))
+  }
 }
 
 function apiSyncEnabled(db: Db): boolean {
@@ -179,6 +210,8 @@ export async function buildSnapshot(db: Db): Promise<CloudSnapshot> {
 
   // 开关关着就一定是 null：这是「默认不上传密钥」这条边界的唯一执行点
   snap.apiConfig = apiSyncEnabled(db) ? await readApiConfig(db) : null
+  // 昵称随快照走（仅展示，服务端没有可写账号名字段，它不参与鉴权）
+  snap.accountName = readNickname(db)
 
   return snap
 }
@@ -193,6 +226,8 @@ export async function applySnapshot(db: Db, snap: CloudSnapshot): Promise<void> 
     // 放在事务外：DPAPI 是异步的，node:sqlite 的事务函数是同步的
     await writeApiConfig(db, snap.apiConfig)
   }
+  // null / 缺失一律不覆盖本机：用户可能刚在本机改过昵称，拉一次云端不该被清掉
+  writeNickname(db, snap.accountName)
 
   const now = new Date().toISOString()
   const tx = db.transaction(() => {
