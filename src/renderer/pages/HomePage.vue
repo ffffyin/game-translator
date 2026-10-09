@@ -127,25 +127,13 @@ onMounted(() => {
           </option>
         </select>
       </div>
-      <div class="row">
-        <label>游戏类型（术语库）</label>
-        <select class="m-input" :value="s.settings.termLibrary" @change="set('termLibrary', $event)">
-          <option value="general">通用（不使用游戏术语）</option>
-          <option v-for="t in libs" :key="t.id" :value="t.game">{{ t.name }}</option>
-        </select>
-      </div>
-      <div class="row">
-        <label>翻译风格</label>
-        <select class="m-input" :value="s.settings.translationStyle" @change="set('translationStyle', $event)">
-          <option v-for="t in TRANSLATION_STYLES" :key="t.value" :value="t.value">{{ t.label }}</option>
-        </select>
-      </div>
       <div class="swap">
         <button class="m-btn swap-btn" title="把聊天方向与画面方向对调" @click="swapDirections">
           ⇄ 互换两组方向
         </button>
       </div>
       <div class="lab sub">画面翻译方向（截图翻译）</div>
+      <p class="hint">截图翻译专用；与聊天方向互不干扰</p>
       <div class="row">
         <label>画面源语言</label>
         <select class="m-input" :value="s.settings.screenSource" @change="set('screenSource', $event)">
@@ -158,6 +146,19 @@ onMounted(() => {
           <option v-for="l in LANGUAGES.filter((x) => x.value !== 'auto')" :key="l.value" :value="l.value">
             {{ l.label }}
           </option>
+        </select>
+      </div>
+      <div class="row">
+        <label>游戏类型（术语库）</label>
+        <select class="m-input" :value="s.settings.termLibrary" @change="set('termLibrary', $event)">
+          <option value="general">通用（不使用游戏术语）</option>
+          <option v-for="t in libs" :key="t.id" :value="t.game">{{ t.name }}</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>翻译风格</label>
+        <select class="m-input" :value="s.settings.translationStyle" @change="set('translationStyle', $event)">
+          <option v-for="t in TRANSLATION_STYLES" :key="t.value" :value="t.value">{{ t.label }}</option>
         </select>
       </div>
     </div>
@@ -314,10 +315,11 @@ onMounted(() => {
   color: #1a1408;
   font-weight: 600;
 }
+/* 夹在两组方向之间：左对齐、跟着 .row 的左列走，别撑满整行抢视线 */
 .swap {
   display: flex;
-  justify-content: center;
-  margin: 14px 0 16px;
+  justify-content: flex-start;
+  margin: 0 0 13px;
 }
 .swap-btn {
   font-size: 12px;
@@ -326,9 +328,15 @@ onMounted(() => {
 }
 .lab.sub {
   margin-top: 4px;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
   padding-top: 13px;
   border-top: 1px dashed var(--line);
+}
+.hint {
+  margin: 0 0 12px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--txt3);
 }
 .test-scope {
   display: flex;
